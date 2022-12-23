@@ -17,6 +17,7 @@ package com.android.javacard.seprovider;
 
 import org.globalplatform.upgrade.Element;
 
+/** This interface helps in storing and restoring the applet data during the applet upgrades. */
 public interface KMUpgradable {
 
   void onSave(Element ele);

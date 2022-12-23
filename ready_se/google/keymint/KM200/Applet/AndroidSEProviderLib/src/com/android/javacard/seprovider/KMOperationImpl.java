@@ -25,6 +25,10 @@ import javacard.security.Signature;
 import javacardx.crypto.AEADCipher;
 import javacardx.crypto.Cipher;
 
+/**
+ * This class contains the actual implementation of all the crypto operations. It internally uses
+ * the Javacard crypto library to perform the operations.
+ */
 public class KMOperationImpl implements KMOperation {
 
   private static final byte ALG_TYPE_OFFSET = 0x00;

@@ -18,8 +18,8 @@ package com.android.javacard.keymaster;
 
 import com.android.javacard.seprovider.KMAttestationCert;
 import com.android.javacard.seprovider.KMDataStoreConstants;
-import com.android.javacard.seprovider.KMDeviceUniqueKeyPair;
 import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMKey;
 import com.android.javacard.seprovider.KMOperation;
 import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.APDU;
@@ -33,9 +33,9 @@ import javacard.security.CryptoException;
 import javacardx.apdu.ExtendedLength;
 
 /**
- * KMKeymasterApplet implements the javacard applet. It creates repository and other install time
- * objects. It also implements the keymaster state machine and handles javacard applet life cycle
- * events.
+ * KMKeymasterApplet implements the javacard applet. It creates an instance of the KMRepository and
+ * other install time objects. It also implements the keymaster state machine and handles javacard
+ * applet life cycle events.
  */
 public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLength {
 
@@ -264,7 +264,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   // ComputeHMAC constants
   private static final byte HMAC_SHARED_PARAM_MAX_SIZE = 64;
   // Instance of RemotelyProvisionedComponentDevice, used to redirect the rkp commands.
-  protected static RemotelyProvisionedComponentDevice rkp;
+  protected static KMRemotelyProvisionedComponentDevice rkp;
   protected static KMEncoder encoder;
   protected static KMDecoder decoder;
   protected static KMRepository repository;
@@ -303,7 +303,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     // initialize default values
     initHmacNonceAndSeed();
     rkp =
-        new RemotelyProvisionedComponentDevice(
+        new KMRemotelyProvisionedComponentDevice(
             encoder, decoder, repository, seProvider, kmDataStore);
   }
 
@@ -1069,7 +1069,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     if (!testMode && kmDataStore.isProvisionLocked()) {
       KMException.throwIt(KMError.STATUS_FAILED);
     }
-    KMDeviceUniqueKeyPair deviceUniqueKey = kmDataStore.getRkpDeviceUniqueKeyPair(testMode);
+    KMKey deviceUniqueKey = kmDataStore.getRkpDeviceUniqueKeyPair(testMode);
     short temp = deviceUniqueKey.getPublicKey(scratchPad, (short) 0);
     short coseKey =
         KMCose.constructCoseKey(
@@ -1139,7 +1139,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
             coseSignStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
     // do sign
     short len =
-        seProvider.ecSign256(deviceUniqueKey, scratchPad, (short) 0, temp, scratchPad, temp);
+        seProvider.signWithDeviceUniqueKey(
+            deviceUniqueKey, scratchPad, (short) 0, temp, scratchPad, temp);
     len =
         KMAsn1Parser.instance()
             .decodeEcdsa256Signature(KMByteBlob.instance(scratchPad, temp, len), scratchPad, temp);
@@ -1817,6 +1818,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
 
   private void processDeleteAllKeysCmd(APDU apdu) {
     // No arguments
+    // This function is triggered when a factory reset event occurs.
+    // Regenerate the master key to render all keys unusable.
+    kmDataStore.regenerateMasterKey();
     // Send ok
     sendResponse(apdu, KMError.OK);
   }
