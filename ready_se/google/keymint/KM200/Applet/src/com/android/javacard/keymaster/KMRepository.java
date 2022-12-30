@@ -27,12 +27,15 @@ import javacard.framework.Util;
  */
 public class KMRepository {
 
+  // The maximum available heap memory.
   public static final short HEAP_SIZE = 10000;
+  // Index pointing from the back of heap.
   private static short[] reclaimIndex;
   // Singleton instance
   private static KMRepository repository;
-  // Class Attributes
+  // Heap buffer
   private byte[] heap;
+  // Index to the heap buffer.
   private short[] heapIndex;
 
   public KMRepository(boolean isUpgrading) {
