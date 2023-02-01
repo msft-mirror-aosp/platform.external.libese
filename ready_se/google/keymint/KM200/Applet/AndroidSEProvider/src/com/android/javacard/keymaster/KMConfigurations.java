@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright(C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.android.javacard.keymaster;
 
-#include <string.h>
-
-#include <ese/ese.h>
-ESE_INCLUDE_HW(ESE_HW_FAKE);
-
-/* Minimal ATR */
-static const uint8_t kAtrBytes[] = {0x00, 0x00};
-const uint8_t *kAtr = &kAtrBytes[0];
-const size_t kAtrLength = sizeof(kAtr);
-const void *kEseOpenData = NULL;
-
-void ese_relay_init(struct EseInterface *ese) { ese_init(ese, ESE_HW_FAKE); }
+public class KMConfigurations {
+  // Machine types
+  public static final byte LITTLE_ENDIAN = 0x00;
+  public static final byte BIG_ENDIAN = 0x01;
+  public static final byte TEE_MACHINE_TYPE = LITTLE_ENDIAN;
+  // If the size of the attestation ids is known and lesser than 64
+  // then reduce the size here. It reduces the heap memory usage.
+  public static final byte MAX_ATTESTATION_IDS_SIZE = 64;
+  public static final short MAX_SUBJECT_DER_LEN = 1095;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright(C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,21 +8,22 @@
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed under the License is distributed on an "AS IS" (short)0IS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.android.javacard.seprovider;
 
-#include <string.h>
+import org.globalplatform.upgrade.Element;
 
-#include <ese/ese.h>
-ESE_INCLUDE_HW(ESE_HW_FAKE);
+public interface KMUpgradable {
 
-/* Minimal ATR */
-static const uint8_t kAtrBytes[] = {0x00, 0x00};
-const uint8_t *kAtr = &kAtrBytes[0];
-const size_t kAtrLength = sizeof(kAtr);
-const void *kEseOpenData = NULL;
+  void onSave(Element ele);
 
-void ese_relay_init(struct EseInterface *ese) { ese_init(ese, ESE_HW_FAKE); }
+  void onRestore(Element ele, short oldVersion, short currentVersion);
+
+  short getBackupPrimitiveByteCount();
+
+  short getBackupObjectCount();
+}
