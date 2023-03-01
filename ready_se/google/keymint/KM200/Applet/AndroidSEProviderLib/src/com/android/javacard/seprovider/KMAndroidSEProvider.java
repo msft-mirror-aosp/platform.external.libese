@@ -141,6 +141,9 @@ public class KMAndroidSEProvider implements KMSEProvider {
 
   public AESKey createAESKey(short keysize) {
     try {
+      if (keysize > TMP_ARRAY_SIZE) {
+        KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
+      }
       newRandomNumber(tmpArray, (short) 0, (short) (keysize / 8));
       return createAESKey(tmpArray, (short) 0, (short) (keysize / 8));
     } finally {
@@ -157,6 +160,8 @@ public class KMAndroidSEProvider implements KMSEProvider {
     } else if (keysize == 256) {
       key = (AESKey) aesKeys[KEYSIZE_256_OFFSET];
       key.setKey(buf, (short) startOff);
+    } else {
+      KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
     }
     return key;
   }
@@ -176,6 +181,10 @@ public class KMAndroidSEProvider implements KMSEProvider {
   }
 
   public HMACKey createHMACKey(short keysize) {
+    // As per the KeyMint2.0 specification
+    // The minimum supported HMAC key size is 64 bits
+    // The maximum supported HMAC key size is 512 bits
+    // The keysize should be a multiple of 8.
     if ((keysize % 8 != 0) || !(keysize >= 64 && keysize <= 512)) {
       CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
     }
@@ -672,10 +681,10 @@ public class KMAndroidSEProvider implements KMSEProvider {
           case KMType.RSA_OAEP:
             {
               if (digest == KMType.SHA1) {
-                  /* MGF Digest is SHA1 */
+                /* MGF Digest is SHA1 */
                 return KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA1;
               } else if (digest == KMType.SHA2_256) {
-                  /* MGF Digest is SHA256 */
+                /* MGF Digest is SHA256 */
                 return KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA256;
               } else {
                 KMException.throwIt(KMError.UNSUPPORTED_ALGORITHM);
