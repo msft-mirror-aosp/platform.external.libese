@@ -61,8 +61,21 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   // Signature algorithm identifier - sha256WithRSAEncryption - 1.2.840.113549.1.1.11
   // SEQUENCE of alg OBJ ID and parameters = NULL.
   private static final byte[] X509RsaSignAlgIdentifier = {
-    0x30, 0x0D, 0x06, 0x09, 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01, 0x01,
-    0x0B, 0x05, 0x00
+    0x30,
+    0x0D,
+    0x06,
+    0x09,
+    0x2A,
+    (byte) 0x86,
+    0x48,
+    (byte) 0x86,
+    (byte) 0xF7,
+    0x0D,
+    0x01,
+    0x01,
+    0x0B,
+    0x05,
+    0x00
   };
 
   // Below are the allowed softwareEnforced Authorization tags inside the attestation certificate's

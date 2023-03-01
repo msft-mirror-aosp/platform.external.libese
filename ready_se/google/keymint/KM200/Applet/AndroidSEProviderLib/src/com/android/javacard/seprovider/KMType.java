@@ -16,7 +16,6 @@
 
 package com.android.javacard.seprovider;
 
-
 /**
  * This class declares all types, tag types, and tag keys. It also establishes basic structure of
  * any KMType i.e. struct{byte type, short length, value} where value can any of the KMType. Also,
@@ -77,6 +76,4 @@ public abstract class KMType {
   public static final byte RSA_PKCS1_1_5_ENCRYPT = 0x04;
   public static final byte RSA_PKCS1_1_5_SIGN = 0x05;
   public static final byte PKCS7 = 0x40;
-
-
 }
