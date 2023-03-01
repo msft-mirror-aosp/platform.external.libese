@@ -56,7 +56,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     0x65, 0x72, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6F, 0x6E
   };
   // "KeymasterSharedMac"
-  public static final byte[] ckdfLable = {
+  public static final byte[] ckdfLabel = {
     0x4B, 0x65, 0x79, 0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x53, 0x68, 0x61, 0x72, 0x65, 0x64, 0x4D,
     0x61, 0x63
   };
@@ -75,7 +75,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   // which is used while creating mac for key paramters.
   public static final short MAX_KEY_PARAMS_BUF_SIZE = (short) 3072; // 3K
   // Data Dictionary items
-  public static final byte DATA_ARRAY_SIZE = 40;
   public static final byte TMP_VARIABLE_ARRAY_SIZE = 5;
   public static final byte KEY_PARAMETERS = 0;
   public static final byte KEY_CHARACTERISTICS = 1;
@@ -116,6 +115,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   public static final byte CONFIRMATION_TOKEN = 36;
   public static final byte KEY_BLOB_VERSION_DATA_OFFSET = 37;
   public static final byte CUSTOM_TAGS = 38;
+  public static final byte DATA_ARRAY_SIZE = 39;
   // Keyblob offsets.
   public static final byte KEY_BLOB_VERSION_OFFSET = 0;
   public static final byte KEY_BLOB_SECRET = 1;
@@ -176,7 +176,10 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   protected static final short MAX_KEY_CHARS_SIZE = 512;
   protected static final short MAX_KEYBLOB_SIZE = 1024;
   private static final short MAX_AUTH_DATA_SIZE = (short) 512;
-  private static final short DERIVE_KEY_INPUT_SIZE = (short) 256;
+  // The minimum bits in length for AES-GCM tag.
+  private static final short MIN_GCM_TAG_LENGTH_BITS = (short) 96;
+  // The maximum bits in length for AES-GCM tag.
+  private static final short MAX_GCM_TAG_LENGTH_BITS = (short) 128;
   // Subject is a fixed field with only CN= Android Keystore Key - same for all the keys
   private static final byte[] defaultSubject = {
     0x30, 0x1F, 0x31, 0x1D, 0x30, 0x1B, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x14, 0x41, 0x6e, 0x64,
@@ -260,6 +263,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   private static final byte INS_KM_VENDOR_END_CMD = (byte) 0xFF;
   // ComputeHMAC constants
   private static final byte HMAC_SHARED_PARAM_MAX_SIZE = 64;
+  // Instance of RemotelyProvisionedComponentDevice, used to redirect the rkp commands.
   protected static RemotelyProvisionedComponentDevice rkp;
   protected static KMEncoder encoder;
   protected static KMDecoder decoder;
@@ -1956,9 +1960,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     short keyLen =
         seProvider.cmacKDF(
             kmDataStore.getPresharedKey(),
-            ckdfLable,
+            ckdfLabel,
             (short) 0,
-            (short) ckdfLable.length,
+            (short) ckdfLabel.length,
             repository.getHeap(),
             concateBuffer,
             bufferIndex,
@@ -2417,7 +2421,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
       KMException.throwIt(KMError.INCOMPATIBLE_PURPOSE);
     }
     KMAsn1Parser asn1Decoder = KMAsn1Parser.instance();
-    short length = 0;
     try {
       asn1Decoder.validateDerSubject(issuer);
     } catch (KMException e) {
@@ -3527,11 +3530,18 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
           if (macLen == KMType.INVALID_VALUE) {
             KMException.throwIt(KMError.MISSING_MAC_LENGTH);
           }
+          short minMacLen =
+              KMIntegerTag.getShortValue(
+                  KMType.UINT_TAG, KMType.MIN_MAC_LENGTH, data[HW_PARAMETERS]);
+          if (minMacLen == KMType.INVALID_VALUE) {
+            KMException.throwIt(KMError.INVALID_KEY_BLOB);
+          }
           if (macLen % 8 != 0
-              || macLen > 128
-              || macLen
-                  < KMIntegerTag.getShortValue(
-                      KMType.UINT_TAG, KMType.MIN_MAC_LENGTH, data[HW_PARAMETERS])) {
+              || macLen > MAX_GCM_TAG_LENGTH_BITS
+              || macLen < MIN_GCM_TAG_LENGTH_BITS) {
+            KMException.throwIt(KMError.UNSUPPORTED_MAC_LENGTH);
+          }
+          if (macLen < minMacLen) {
             KMException.throwIt(KMError.INVALID_MAC_LENGTH);
           }
           op.setMacLength(macLen);
@@ -3558,6 +3568,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
       case KMType.HMAC:
         short minMacLen =
             KMIntegerTag.getShortValue(KMType.UINT_TAG, KMType.MIN_MAC_LENGTH, data[HW_PARAMETERS]);
+        if (minMacLen == KMType.INVALID_VALUE) {
+          KMException.throwIt(KMError.INVALID_KEY_BLOB);
+        }
         op.setMinMacLength(minMacLen);
         if (macLen == KMType.INVALID_VALUE) {
           if (op.getPurpose() == KMType.SIGN) {
@@ -4450,7 +4463,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   // is moved to a place where it is called on every boot.
   private void processInitStrongBoxCmd(APDU apdu) {
     short cmd = initStrongBoxCmd(apdu);
-    byte[] scratchPad = apdu.getBuffer();
 
     short osVersion = KMArray.cast(cmd).get((short) 0);
     short osPatchLevel = KMArray.cast(cmd).get((short) 1);

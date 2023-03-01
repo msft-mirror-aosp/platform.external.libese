@@ -906,7 +906,7 @@ public class KMKeymintDataStore implements KMUpgradable {
   @Override
   public void onRestore(Element element, short oldVersion, short currentVersion) {
     if (oldVersion <= KM_APPLET_PACKAGE_VERSION_1) {
-      // 1.0 to 3.0 Upgrade happens here.
+      // 1.0 to 3.1 Upgrade happens here.
       handlePreviousVersionUpgrade(element);
       return;
     } else if (oldVersion == KM_APPLET_PACKAGE_VERSION_2) {
