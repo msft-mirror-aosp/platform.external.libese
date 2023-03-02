@@ -15,6 +15,10 @@
  */
 package com.android.javacard.keymaster;
 
+/**
+ * This class contains all the configuration values. Vendors can modify these values accordingly
+ * based on their environment.
+ */
 public class KMConfigurations {
   // Machine types
   public static final byte LITTLE_ENDIAN = 0x00;
