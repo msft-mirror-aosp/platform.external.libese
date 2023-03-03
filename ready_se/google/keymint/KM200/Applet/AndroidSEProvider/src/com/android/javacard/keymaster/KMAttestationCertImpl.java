@@ -18,17 +18,17 @@ package com.android.javacard.keymaster;
 import com.android.javacard.seprovider.KMAESKey;
 import com.android.javacard.seprovider.KMAttestationCert;
 import com.android.javacard.seprovider.KMException;
-import com.android.javacard.seprovider.KMMasterKey;
+import com.android.javacard.seprovider.KMKey;
 import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
-// The class encodes strongbox generated amd signed attestation certificate. This only encodes
-// required fields of the certificates. It is not meant to be generic X509 cert encoder.
-// Whatever fields that are fixed are added as byte arrays. The Extensions are encoded as per
-// the values.
-// The certificate is assembled with leafs first and then the sequences.
-
+/**
+ * The class encodes strongbox generated and signed attestation certificates. It only encodes the
+ * required fields of the certificates. This class is not meant to be a generic X509 cert encoder.
+ * Any fields that are fixed are added as byte arrays. Extensions are encoded as per the values. The
+ * certificate is assembled with leafs first and then the sequences.
+ */
 public class KMAttestationCertImpl implements KMAttestationCert {
 
   private static final byte MAX_PARAMS = 30;
@@ -967,7 +967,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
       short appIdOff,
       short attestAppIdLen,
       byte resetSinceIdRotation,
-      KMMasterKey masterKey) {
+      KMKey masterKey) {
     // Concatenate T||C||R
     // temporal count T
     short temp =
