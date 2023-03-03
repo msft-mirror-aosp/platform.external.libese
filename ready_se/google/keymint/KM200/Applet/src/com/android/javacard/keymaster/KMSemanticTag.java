@@ -4,6 +4,11 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.Util;
 
+/**
+ * KMSemanticTag corresponds to CBOR type of tagged item. The structure is defined as struct{byte
+ * SEMANTIC_TAG_TYPE; short length; tag, short ptr }. Tag is INTEGER_TYPE and the possible values
+ * are defined here https://www.rfc-editor.org/rfc/rfc7049#section-2.4
+ */
 public class KMSemanticTag extends KMType {
 
   public static final short COSE_MAC_SEMANTIC_TAG = (short) 0x0011;

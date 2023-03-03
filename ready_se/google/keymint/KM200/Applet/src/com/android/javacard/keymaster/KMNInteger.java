@@ -20,6 +20,10 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.Util;
 
+/**
+ * Represents 8-bit, 16-bit, 32-bit and 64-bit signed integer. It corresponds to CBOR int type.
+ * struct{byte NEG_INTEGER_TYPE; short length; 4 or 8 bytes of value}
+ */
 public class KMNInteger extends KMInteger {
 
   public static final byte SIGNED_MASK = (byte) 0x80;
