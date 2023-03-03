@@ -4,6 +4,10 @@ import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.Util;
 
+/**
+ * KMSimpleValue corresponds to CBOR type of Simple value. It holds either true, false or NULL
+ * values. The structure is defined as struct{byte SIMPLE_VALUE_TYPE; short length; simple value }
+ */
 public class KMSimpleValue extends KMType {
 
   public static final byte FALSE = (byte) 20;

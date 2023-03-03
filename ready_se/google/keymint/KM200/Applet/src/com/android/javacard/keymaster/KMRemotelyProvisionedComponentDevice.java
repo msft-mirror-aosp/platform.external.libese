@@ -15,8 +15,8 @@
  */
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMDeviceUniqueKeyPair;
 import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMKey;
 import com.android.javacard.seprovider.KMOperation;
 import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.APDU;
@@ -25,16 +25,16 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
-/*
- * This class handles the remote key provisioning. Generates an RKP key and generates a certificate signing
- * request(CSR). The generation of CSR is divided amoung multiple functions to the save the memory inside
- * the Applet. The set of functions to be called sequentially in the order to complete the process of
- * generating the CSR are processBeginSendData, processUpdateKey, processUpdateEekChain,
- * processUpdateChallenge, processFinishSendData and getResponse. ProcessUpdateKey is called N times, where
- * N is the number of keys. Similarly getResponse is called is multiple times till the client receives the
- * response completely.
+/**
+ * This class handles remote key provisioning. Generates an RKP key and generates a certificate
+ * signing request(CSR). The generation of CSR is divided among multiple functions to the save the
+ * memory inside the Applet. The set of functions to be called sequentially in the order to complete
+ * the process of generating the CSR are processBeginSendData, processUpdateKey,
+ * processUpdateEekChain, processUpdateChallenge, processFinishSendData, and getResponse.
+ * ProcessUpdateKey is called Ntimes, where N is the number of keys. Similarly, getResponse is
+ * called multiple times till the client receives the response completely.
  */
-public class RemotelyProvisionedComponentDevice {
+public class KMRemotelyProvisionedComponentDevice {
 
   // Device Info labels
   public static final byte[] BRAND = {0x62, 0x72, 0x61, 0x6E, 0x64};
@@ -151,7 +151,7 @@ public class RemotelyProvisionedComponentDevice {
   private Object[] operation;
   private short[] dataIndex;
 
-  public RemotelyProvisionedComponentDevice(
+  public KMRemotelyProvisionedComponentDevice(
       KMEncoder encoder,
       KMDecoder decoder,
       KMRepository repository,
@@ -790,10 +790,7 @@ public class RemotelyProvisionedComponentDevice {
   }
 
   private short createSignedMac(
-      KMDeviceUniqueKeyPair deviceUniqueKeyPair,
-      byte[] scratchPad,
-      short deviceMapPtr,
-      short pubKeysToSign) {
+      KMKey deviceUniqueKeyPair, byte[] scratchPad, short deviceMapPtr, short pubKeysToSign) {
     // Challenge
     short dataEntryIndex = getEntry(CHALLENGE);
     short challengePtr = KMByteBlob.instance(data, dataEntryIndex, getEntryLength(CHALLENGE));
@@ -834,7 +831,7 @@ public class RemotelyProvisionedComponentDevice {
     short maxEcdsaSignLen = 72;
     short reclaimIndex = repository.allocReclaimableMemory(maxEcdsaSignLen);
     short len =
-        seProvider.ecSign256(
+        seProvider.signWithDeviceUniqueKey(
             deviceUniqueKeyPair,
             scratchPad,
             (short) 0,
@@ -858,8 +855,8 @@ public class RemotelyProvisionedComponentDevice {
         protectedHeaders, unprotectedHeader, ephmeralMacKey, signStructure);
   }
 
-  private KMDeviceUniqueKeyPair createDeviceUniqueKeyPair(boolean testMode, byte[] scratchPad) {
-    KMDeviceUniqueKeyPair deviceUniqueKeyPair;
+  private KMKey createDeviceUniqueKeyPair(boolean testMode, byte[] scratchPad) {
+    KMKey deviceUniqueKeyPair;
     rkpTmpVariables[0] = 0;
     rkpTmpVariables[1] = 0;
     if (testMode) {
@@ -1372,7 +1369,7 @@ public class RemotelyProvisionedComponentDevice {
 
   private short processSignedMac(byte[] scratchPad, short pubKeysToSignMac, short deviceInfo) {
     // Construct SignedMac
-    KMDeviceUniqueKeyPair deviceUniqueKeyPair =
+    KMKey deviceUniqueKeyPair =
         createDeviceUniqueKeyPair((TRUE == data[getEntry(TEST_MODE)]) ? true : false, scratchPad);
     // Create signedMac
     short signedMac =
