@@ -22,6 +22,10 @@ import javacard.security.MessageDigest;
 import javacard.security.Signature;
 import javacardx.crypto.Cipher;
 
+/**
+ * This class provides support for ECDSA_NO_DIGEST signature algorithm. Added this because javacard
+ * 3.0.5 does not support this
+ */
 public class KMEcdsa256NoDigestSignature extends Signature {
 
   public static final byte ALG_ECDSA_NODIGEST = (byte) 0x67;
@@ -31,6 +35,8 @@ public class KMEcdsa256NoDigestSignature extends Signature {
 
   public KMEcdsa256NoDigestSignature(byte alg) {
     algorithm = alg;
+    // There is no constant for no digest so ALG_ECDSA_SHA_256 is used. However,
+    // signPreComputedHash is used for signing which is equivalent to no digest sign.
     inst = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
   }
 

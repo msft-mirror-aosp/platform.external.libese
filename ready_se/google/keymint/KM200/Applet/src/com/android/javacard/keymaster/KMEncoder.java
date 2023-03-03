@@ -22,6 +22,11 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
+/**
+ * This class encodes KMType structures to a cbor format data recursively. Encoded bytes are written
+ * on the buffer provided by the caller. An exception will be thrown if the encoded data length is
+ * greater than the buffer length provided.
+ */
 public class KMEncoder {
 
   // major types

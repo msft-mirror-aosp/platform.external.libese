@@ -18,7 +18,8 @@ package com.android.javacard.seprovider;
 import javacard.security.HMACKey;
 import org.globalplatform.upgrade.Element;
 
-public class KMHmacKey implements KMPreSharedKey, KMComputedHmacKey, KMRkpMacKey {
+/** This is a wrapper class for HMACKey. */
+public class KMHmacKey implements KMKey {
 
   public HMACKey hmacKey;
 
@@ -43,5 +44,10 @@ public class KMHmacKey implements KMPreSharedKey, KMComputedHmacKey, KMRkpMacKey
 
   public static short getBackupObjectCount() {
     return (short) 1;
+  }
+
+  @Override
+  public short getPublicKey(byte[] buf, short offset) {
+    return (short) 0;
   }
 }
