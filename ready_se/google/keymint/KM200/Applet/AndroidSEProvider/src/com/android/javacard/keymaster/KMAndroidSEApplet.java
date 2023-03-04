@@ -33,13 +33,12 @@ import org.globalplatform.upgrade.UpgradeManager;
  * class which stores the data in the flash memory.
  */
 public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeListener {
-  // Magic number version
+  // Magic number version stored along with provisioned data. This is used to differentiate
+  // between data before and after the magic number is used.
   private static final byte KM_MAGIC_NUMBER = (byte) 0x82;
   // MSB byte is for Major version and LSB byte is for Minor version.
   public static final short KM_APPLET_PACKAGE_VERSION = 0x0301;
-
-  private static final byte KM_BEGIN_STATE = 0x00;
-  private static final byte ILLEGAL_STATE = KM_BEGIN_STATE + 1;
+  // This flag is used to know if card reset happened.
   private static final short POWER_RESET_MASK_FLAG = (short) 0x4000;
 
   // Provider specific Commands
@@ -67,11 +66,11 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
       INS_KEYMINT_PROVIDER_APDU_START + 18;
 
   private static final byte INS_KEYMINT_PROVIDER_APDU_END = 0x1F;
-  public static final byte BOOT_KEY_MAX_SIZE = 32;
-  public static final byte BOOT_HASH_MAX_SIZE = 32;
+  // The length of the provisioned pre shared key.
   public static final byte SHARED_SECRET_KEY_SIZE = 32;
 
-  // Package version.
+  // Version of the database which is used to differentiate between different version of the
+  // database.
   protected short packageVersion;
 
   KMAndroidSEApplet() {
