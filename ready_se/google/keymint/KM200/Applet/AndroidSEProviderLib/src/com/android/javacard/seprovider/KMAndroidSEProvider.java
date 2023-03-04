@@ -47,20 +47,28 @@ import org.globalplatform.upgrade.UpgradeManager;
  */
 public class KMAndroidSEProvider implements KMSEProvider {
 
+  // The tag length for AES GCM algorithm.
   public static final byte AES_GCM_TAG_LENGTH = 16;
+  // The nonce length for AES GCM algorithm.
   public static final byte AES_GCM_NONCE_LENGTH = 12;
+  // AES keysize offsets in aesKeys[] for 128 and 256 sizes respectively.
   public static final byte KEYSIZE_128_OFFSET = 0x00;
   public static final byte KEYSIZE_256_OFFSET = 0x01;
+  // The size of the temporary buffer.
   public static final short TMP_ARRAY_SIZE = 300;
+  // The length of the rsa key in bytes.
   private static final short RSA_KEY_SIZE = 256;
-  public static final short CERT_CHAIN_MAX_SIZE = 2500; // First 2 bytes for length.
-  public static final byte SHARED_SECRET_KEY_SIZE = 32;
+  // Below are the flag to denote device reset events
   public static final byte POWER_RESET_FALSE = (byte) 0xAA;
   public static final byte POWER_RESET_TRUE = (byte) 0x00;
+  // The computed HMAC key size.
   private static final byte COMPUTED_HMAC_KEY_SIZE = 32;
+  // The constant 'L' as defiend in
+  // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf, page 12.
   private static byte[] CMAC_KDF_CONSTANT_L;
+  // Constant to represent 0.
   private static byte[] CMAC_KDF_CONSTANT_ZERO;
-
+  // KeyAgreement instance.
   private static KeyAgreement keyAgreement;
 
   // AESKey
@@ -77,19 +85,21 @@ public class KMAndroidSEProvider implements KMSEProvider {
   public byte[] tmpArray;
   // This is used for internal encryption/decryption operations.
   private static AEADCipher aesGcmCipher;
-
+  // Instance of Signature algorithm used in KDF.
   private Signature kdf;
+  // Flag used to denote the power reset event.
   public static byte[] resetFlag;
-
+  // Instance of HMAC Signature algorithm.
   private Signature hmacSignature;
   // For ImportwrappedKey operations.
   private KMRsaOAEPEncoding rsaOaepDecipher;
+  // Instance of pool manager.
   private KMPoolManager poolMgr;
-
+  // Instance of KMOperationImpl used only to encrypt/decrypt the KeyBlobs.
   private KMOperationImpl globalOperation;
   // Entropy
   private RandomData rng;
-
+  // Singleton instance.
   private static KMAndroidSEProvider androidSEProvider = null;
 
   public static KMAndroidSEProvider getInstance() {
@@ -491,6 +501,8 @@ public class KMAndroidSEProvider implements KMSEProvider {
       byte[] context,
       short contextStart,
       short contextLength) {
+    // Note: the variables i and L correspond to i and L in the standard.  See page 12 of
+    // http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf.
     try {
       // This is hardcoded to requirement - 32 byte output with two concatenated
       // 16 bytes K1 and K2.
