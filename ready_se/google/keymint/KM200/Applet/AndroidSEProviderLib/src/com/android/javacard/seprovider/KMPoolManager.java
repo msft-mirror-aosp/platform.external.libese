@@ -29,7 +29,15 @@ import javacard.security.Signature;
 import javacardx.crypto.AEADCipher;
 import javacardx.crypto.Cipher;
 
-/** This class manages all the pool instances. */
+/**
+ * This class creates and manages all the cipher, signer, key agreement, operation and trusted
+ * confirmation pool instances. Each cipher or signer pool can hold a maximum of 4 instances per
+ * algorithm; however, only one instance of each algorithm is created initially and if required more
+ * instances are created dynamically. A maximum of four operations can be performed simultaneously.
+ * Upon reaching the maximum limit of 4, further operations or crypto instances will throw a
+ * TOO_MANY_OPERATIONS error. TrustedConfirmation pool is to support any operation which has the
+ * TRUSTED_CONFIRMATION tag in its key parameters.
+ */
 public class KMPoolManager {
 
   public static final byte MAX_OPERATION_INSTANCES = 4;

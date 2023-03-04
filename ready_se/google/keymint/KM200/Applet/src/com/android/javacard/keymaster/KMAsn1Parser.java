@@ -4,6 +4,10 @@ import com.android.javacard.seprovider.KMException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
+/**
+ * This is a utility class that helps in parsing the PKCS8 encoded RSA and EC keys, certificate
+ * subject, subjectPublicKey info and ECDSA signatures.
+ */
 public class KMAsn1Parser {
 
   public static final byte ASN1_OCTET_STRING = 0x04;

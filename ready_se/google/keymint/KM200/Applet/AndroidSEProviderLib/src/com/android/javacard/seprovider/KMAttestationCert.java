@@ -73,7 +73,7 @@ public interface KMAttestationCert {
       short attestAppIdOff,
       short attestAppIdLen,
       byte resetSinceIdRotation,
-      KMMasterKey masterKey);
+      KMKey masterKey);
 
   /**
    * Set start time received from creation/activation time tag. Used for certificate's valid period.

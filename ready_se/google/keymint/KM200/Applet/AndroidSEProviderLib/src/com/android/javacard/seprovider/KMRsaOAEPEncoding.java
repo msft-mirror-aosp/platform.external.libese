@@ -22,6 +22,7 @@ import javacard.security.Key;
 import javacard.security.MessageDigest;
 import javacardx.crypto.Cipher;
 
+/** This class has the implementation for RSA_OAEP decoding algorithm. */
 public class KMRsaOAEPEncoding extends Cipher {
 
   public static final byte ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA1 = (byte) 0x1E;

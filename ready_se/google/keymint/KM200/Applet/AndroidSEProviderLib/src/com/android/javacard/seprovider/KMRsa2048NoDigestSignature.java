@@ -22,6 +22,7 @@ import javacard.security.MessageDigest;
 import javacard.security.Signature;
 import javacardx.crypto.Cipher;
 
+/** This class provides support for RSA_NO_DIGEST signature algorithm. */
 public class KMRsa2048NoDigestSignature extends Signature {
 
   public static final byte ALG_RSA_SIGN_NOPAD = (byte) 0x65;
