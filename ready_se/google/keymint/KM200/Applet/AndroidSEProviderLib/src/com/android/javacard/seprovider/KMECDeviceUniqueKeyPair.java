@@ -1,5 +1,5 @@
 /*
- * Copyright(C) 2020 The Android Open Source Project
+ * Copyright(C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +15,34 @@
  */
 package com.android.javacard.seprovider;
 
+import javacard.security.ECPublicKey;
 import javacard.security.KeyPair;
 import org.globalplatform.upgrade.Element;
 
-public class KMECPrivateKey implements KMAttestationKey {
+/** This is a wrapper class for KeyPair. */
+public class KMECDeviceUniqueKeyPair implements KMKey {
 
   public KeyPair ecKeyPair;
 
-  public KMECPrivateKey(KeyPair ecPair) {
+  @Override
+  public short getPublicKey(byte[] buf, short offset) {
+    ECPublicKey publicKey = (ECPublicKey) ecKeyPair.getPublic();
+    return publicKey.getW(buf, offset);
+  }
+
+  public KMECDeviceUniqueKeyPair(KeyPair ecPair) {
     ecKeyPair = ecPair;
   }
 
-  public static void onSave(Element element, KMECPrivateKey kmKey) {
+  public static void onSave(Element element, KMECDeviceUniqueKeyPair kmKey) {
     element.write(kmKey.ecKeyPair);
   }
 
-  public static KMECPrivateKey onRestore(KeyPair ecKey) {
+  public static KMECDeviceUniqueKeyPair onRestore(KeyPair ecKey) {
     if (ecKey == null) {
       return null;
     }
-    return new KMECPrivateKey(ecKey);
+    return new KMECDeviceUniqueKeyPair(ecKey);
   }
 
   public static short getBackupPrimitiveByteCount() {

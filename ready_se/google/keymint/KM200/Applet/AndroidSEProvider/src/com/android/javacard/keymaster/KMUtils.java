@@ -18,6 +18,10 @@ package com.android.javacard.keymaster;
 import com.android.javacard.seprovider.KMException;
 import javacard.framework.Util;
 
+/**
+ * This is a utility class which helps in converting date to UTC format and doing some arithmetic
+ * Operations.
+ */
 public class KMUtils {
 
   // 64 bit unsigned calculations for time

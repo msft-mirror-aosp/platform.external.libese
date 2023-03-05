@@ -4,8 +4,13 @@ import com.android.javacard.seprovider.KMException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
+/**
+ * This is a utility class that helps in parsing the PKCS8 encoded RSA and EC keys, certificate
+ * subject, subjectPublicKey info and ECDSA signatures.
+ */
 public class KMAsn1Parser {
 
+  // Below are the ASN.1 tag types
   public static final byte ASN1_OCTET_STRING = 0x04;
   public static final byte ASN1_SEQUENCE = 0x30;
   public static final byte ASN1_SET = 0x31;
@@ -21,9 +26,11 @@ public class KMAsn1Parser {
   public static final byte ASN1_UNIVERSAL_STRING = 0x1C;
   public static final byte ASN1_BMP_STRING = 0x1E;
   public static final byte IA5_STRING = 0x16;
+  // OID of the EC P256 curve 1.2.840.10045.3.1.7
   public static final byte[] EC_CURVE = {
     0x06, 0x08, 0x2a, (byte) 0x86, 0x48, (byte) 0xce, 0x3d, 0x03, 0x01, 0x07
   };
+  // Constant for rsaEncryption pkcs#1 (1.2.840.113549.1.1.1) and NULL
   public static final byte[] RSA_ALGORITHM = {
     0x06,
     0x09,
@@ -39,6 +46,7 @@ public class KMAsn1Parser {
     0x05,
     0x00
   };
+  // Constant for ecPublicKey (1.2.840.10045.2.1) and prime256v1 (1.2.840.10045.3.1.7)
   public static final byte[] EC_ALGORITHM = {
     0x06,
     0x07,
@@ -60,7 +68,9 @@ public class KMAsn1Parser {
     0x01,
     0x07
   };
+  // The maximum length of email id attribute.
   public static final short MAX_EMAIL_ADD_LEN = 255;
+  // Datatable offsets.
   private static final byte DATA_START_OFFSET = 0;
   private static final byte DATA_LENGTH_OFFSET = 1;
   private static final byte DATA_CURSOR_OFFSET = 2;
