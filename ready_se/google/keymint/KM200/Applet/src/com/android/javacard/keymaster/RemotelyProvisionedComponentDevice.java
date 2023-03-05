@@ -181,21 +181,21 @@ public class RemotelyProvisionedComponentDevice {
   private void createAuthorizedEEKRoot() {
     if (authorizedEekRoots == null) {
       authorizedEekRoots =
-        new Object[] {
-          new byte[] {
-            (byte) 0x04, (byte) 0xf7, (byte) 0x14, (byte) 0x8a, (byte) 0xdb, (byte) 0x97,
-            (byte) 0xf4, (byte) 0xcc, (byte) 0x53, (byte) 0xef, (byte) 0xd2, (byte) 0x64,
-            (byte) 0x11, (byte) 0xc4, (byte) 0xe3, (byte) 0x75, (byte) 0x1f, (byte) 0x66,
-            (byte) 0x1f, (byte) 0xa4, (byte) 0x71, (byte) 0x0c, (byte) 0x6c, (byte) 0xcf,
-            (byte) 0xfa, (byte) 0x09, (byte) 0x46, (byte) 0x80, (byte) 0x74, (byte) 0x87,
-            (byte) 0x54, (byte) 0xf2, (byte) 0xad, (byte) 0x5e, (byte) 0x7f, (byte) 0x5b,
-            (byte) 0xf6, (byte) 0xec, (byte) 0xe4, (byte) 0xf6, (byte) 0x19, (byte) 0xcc,
-            (byte) 0xff, (byte) 0x13, (byte) 0x37, (byte) 0xfd, (byte) 0x0f, (byte) 0xa1,
-            (byte) 0xc8, (byte) 0x93, (byte) 0xdb, (byte) 0x18, (byte) 0x06, (byte) 0x76,
-            (byte) 0xc4, (byte) 0x5d, (byte) 0xe6, (byte) 0xd7, (byte) 0x6a, (byte) 0x77,
-            (byte) 0x86, (byte) 0xc3, (byte) 0x2d, (byte) 0xaf, (byte) 0x8f
-          },
-        };
+          new Object[] {
+            new byte[] {
+              (byte) 0x04, (byte) 0xf7, (byte) 0x14, (byte) 0x8a, (byte) 0xdb, (byte) 0x97,
+              (byte) 0xf4, (byte) 0xcc, (byte) 0x53, (byte) 0xef, (byte) 0xd2, (byte) 0x64,
+              (byte) 0x11, (byte) 0xc4, (byte) 0xe3, (byte) 0x75, (byte) 0x1f, (byte) 0x66,
+              (byte) 0x1f, (byte) 0xa4, (byte) 0x71, (byte) 0x0c, (byte) 0x6c, (byte) 0xcf,
+              (byte) 0xfa, (byte) 0x09, (byte) 0x46, (byte) 0x80, (byte) 0x74, (byte) 0x87,
+              (byte) 0x54, (byte) 0xf2, (byte) 0xad, (byte) 0x5e, (byte) 0x7f, (byte) 0x5b,
+              (byte) 0xf6, (byte) 0xec, (byte) 0xe4, (byte) 0xf6, (byte) 0x19, (byte) 0xcc,
+              (byte) 0xff, (byte) 0x13, (byte) 0x37, (byte) 0xfd, (byte) 0x0f, (byte) 0xa1,
+              (byte) 0xc8, (byte) 0x93, (byte) 0xdb, (byte) 0x18, (byte) 0x06, (byte) 0x76,
+              (byte) 0xc4, (byte) 0x5d, (byte) 0xe6, (byte) 0xd7, (byte) 0x6a, (byte) 0x77,
+              (byte) 0x86, (byte) 0xc3, (byte) 0x2d, (byte) 0xaf, (byte) 0x8f
+            },
+          };
     }
   }
 
@@ -830,14 +830,24 @@ public class RemotelyProvisionedComponentDevice {
     signStructure =
         KMKeymasterApplet.encodeToApduBuffer(
             signStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
+    // 72 is the maximum ECDSA Signature length.
+    short maxEcdsaSignLen = 72;
+    short reclaimIndex = repository.allocReclaimableMemory(maxEcdsaSignLen);
     short len =
         seProvider.ecSign256(
-            deviceUniqueKeyPair, scratchPad, (short) 0, signStructure, scratchPad, signStructure);
+            deviceUniqueKeyPair,
+            scratchPad,
+            (short) 0,
+            signStructure,
+            repository.getHeap(),
+            reclaimIndex);
+    Util.arrayCopyNonAtomic(repository.getHeap(), reclaimIndex, scratchPad, (short) 0, len);
+    repository.reclaimMemory(maxEcdsaSignLen);
     len =
         KMAsn1Parser.instance()
             .decodeEcdsa256Signature(
-                KMByteBlob.instance(scratchPad, signStructure, len), scratchPad, signStructure);
-    signStructure = KMByteBlob.instance(scratchPad, signStructure, len);
+                KMByteBlob.instance(scratchPad, (short) 0, len), scratchPad, (short) 0);
+    signStructure = KMByteBlob.instance(scratchPad, (short) 0, len);
 
     /* Construct unprotected headers */
     short unprotectedHeader = KMArray.instance((short) 0);
