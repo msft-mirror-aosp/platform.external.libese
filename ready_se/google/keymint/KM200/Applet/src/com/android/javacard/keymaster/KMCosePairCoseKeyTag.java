@@ -6,7 +6,7 @@ import javacard.framework.Util;
 
 /**
  * KMCosePairCoseKeyTag represents a key-value type, where key can be KMInteger or KMNInteger and
- * value is KMCOseKey type. struct{byte TAG_TYPE; short length; struct{short COSE_KEY_VALUE_TYPE;
+ * value is KMCoseKey type. struct{byte TAG_TYPE; short length; struct{short COSE_KEY_VALUE_TYPE;
  * short key; short value}}.
  */
 public class KMCosePairCoseKeyTag extends KMCosePairTagType {
