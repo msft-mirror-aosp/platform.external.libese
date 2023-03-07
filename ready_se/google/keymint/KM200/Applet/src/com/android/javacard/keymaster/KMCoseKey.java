@@ -25,7 +25,9 @@ import javacard.framework.Util;
  * https://datatracker.ietf.org/doc/html/rfc8152#section-7 The supported key types are KMNInteger,
  * KMInteger and the supported value types are KMInteger, KMNInteger, KMByteBlob, KMSimpleValue. It
  * corresponds to a CBOR Map type. struct{byte TAG_TYPE; short length; short arrayPtr } where
- * arrayPtr is a pointer to array with any KMTag subtype instances.
+ * arrayPtr is a pointer to array with any KMTag subtype instances. Note that construction of the
+ * key_ops label is not needed to be supported. In the KeyMint2.0 specifications: The CoseKey inside
+ * MacedPublicKeys and DiceCertChain does not have key_ops label.
  */
 public class KMCoseKey extends KMCoseMap {
 
@@ -182,7 +184,9 @@ public class KMCoseKey extends KMCoseMap {
   }
 
   /**
-   * Verifies the KMCoseKey values against the input values.
+   * Verifies the KMCoseKey values against the input values. Note that construction of the key_ops
+   * label is not needed to be supported. In the KeyMint2.0 specifications: The CoseKey inside
+   * MacedPublicKeys and DiceCertChain does not have key_ops label.
    *
    * @param keyType value of the key type
    * @param keyIdPtr instance of KMByteBlob containing the key id.
@@ -192,18 +196,16 @@ public class KMCoseKey extends KMCoseMap {
    * @return true if valid, otherwise false.
    */
   public boolean isDataValid(
-      short[] buff, short keyType, short keyIdPtr, short keyAlg, short keyOps, short curve) {
-    short buffLen = 10;
+      short[] buff, short keyType, short keyIdPtr, short keyAlg, short curve) {
+    short buffLen = 8;
     buff[0] = KMCose.COSE_KEY_KEY_TYPE;
     buff[1] = keyType;
     buff[2] = KMCose.COSE_KEY_KEY_ID;
     buff[3] = keyIdPtr;
     buff[4] = KMCose.COSE_KEY_ALGORITHM;
     buff[5] = keyAlg;
-    buff[6] = KMCose.COSE_KEY_KEY_OPS;
-    buff[7] = keyOps;
-    buff[8] = KMCose.COSE_KEY_CURVE;
-    buff[9] = curve;
+    buff[6] = KMCose.COSE_KEY_CURVE;
+    buff[7] = curve;
     boolean valid = false;
     short ptr;
     short tagIndex = 0;
