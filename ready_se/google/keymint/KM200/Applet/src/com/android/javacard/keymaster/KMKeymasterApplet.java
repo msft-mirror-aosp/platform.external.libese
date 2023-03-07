@@ -1047,7 +1047,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
               KMCose.COSE_KEY_TYPE_EC2,
               KMType.INVALID_VALUE,
               alg,
-              KMType.INVALID_VALUE,
               KMCose.COSE_ECCURVE_256)) {
         KMException.throwIt(KMError.STATUS_FAILED);
       }
@@ -1127,7 +1126,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
             KMInteger.uint_8(KMCose.COSE_KEY_TYPE_EC2),
             KMType.INVALID_VALUE,
             KMNInteger.uint_8(KMCose.COSE_ALG_ES256),
-            KMInteger.uint_8(KMCose.COSE_KEY_OP_VERIFY),
             KMInteger.uint_8(KMCose.COSE_ECCURVE_256),
             scratchPad,
             (short) 0,
