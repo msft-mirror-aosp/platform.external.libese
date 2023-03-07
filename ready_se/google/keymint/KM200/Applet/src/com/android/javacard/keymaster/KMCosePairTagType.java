@@ -21,12 +21,11 @@ import javacard.framework.ISOException;
 import javacard.framework.Util;
 
 /**
- * This class represents the COSE_Key as defined in
- * https://datatracker.ietf.org/doc/html/rfc8152#section-7. This is basically a map containing key
- * value pairs. The label for the key can be (uint / int / tstr) and the value can be of any type.
- * But this class is confined to support only key and value types which are required for remote key
- * provisioning. So keys of type (int / uint) and values of type (int / uint / simple / bstr) only
- * are supported. The structure representing all the sub classes of KMCosePairTagType is as follows:
+ * This class represents the a key-value types. This is basically a map containing key value pairs.
+ * The label for the key can be (uint / int / tstr) and the value can be of any type. But this class
+ * is confined to support only key and value types which are required for remote key provisioning.
+ * So keys of type (int / uint) and values of type (int / uint / simple / bstr) only are supported.
+ * The structure representing all the sub classes of KMCosePairTagType is as follows:
  * KM_COSE_PAIR_TAG_TYPE(1byte), Length(2 bytes), COSE_PAIR_*_TAG_TYPE(2 bytes), Key(2 bytes),
  * Value(2 bytes). Key can be either KMInteger or KMNInteger and Value can be either KMIntger or
  * KMNinteger or KMSimpleValue or KMByteBlob or KMTextString or KMCoseKey. Each subclass of
@@ -56,15 +55,6 @@ public abstract class KMCosePairTagType extends KMType {
                   KMCose.COSE_ALG_HMAC_256,
                   KMCose.COSE_ALG_ECDH_ES_HKDF_256,
                   KMCose.COSE_ALG_ES256
-                },
-            // Key operations
-            (Object) new byte[] {0, 0, 0, KMCose.COSE_KEY_KEY_OPS},
-            (Object)
-                new byte[] {
-                  KMCose.COSE_KEY_OP_SIGN,
-                  KMCose.COSE_KEY_OP_VERIFY,
-                  KMCose.COSE_KEY_OP_ENCRYPT,
-                  KMCose.COSE_KEY_OP_DECRYPT
                 },
             // Key Curve
             (Object) new byte[] {0, 0, 0, KMCose.COSE_KEY_CURVE},
