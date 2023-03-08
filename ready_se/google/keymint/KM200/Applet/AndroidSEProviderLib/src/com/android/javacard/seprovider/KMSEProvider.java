@@ -92,7 +92,7 @@ public interface KMSEProvider {
    * @param computedHmacKey Instance of the computed Hmac key.
    * @return instance of KMOperation.
    */
-  KMOperation initTrustedConfirmationSymmetricOperation(KMComputedHmacKey computedHmacKey);
+  KMOperation initTrustedConfirmationSymmetricOperation(KMKey computedHmacKey);
 
   /**
    * Verify that the imported key is valid. If the algorithm and/or keysize are not supported then
@@ -263,7 +263,7 @@ public interface KMSEProvider {
    * @return length of the derived key buffer in bytes.
    */
   short cmacKDF(
-      KMPreSharedKey hmacKey,
+      KMKey hmacKey,
       byte[] label,
       short labelStart,
       short labelLen,
@@ -328,7 +328,7 @@ public interface KMSEProvider {
    * @return length of the signature buffer in bytes.
    */
   short hmacKDF(
-      KMMasterKey masterkey,
+      KMKey masterkey,
       byte[] data,
       short dataStart,
       short dataLength,
@@ -350,7 +350,7 @@ public interface KMSEProvider {
    * @return true if the signature matches.
    */
   boolean hmacVerify(
-      KMComputedHmacKey hmacKey,
+      KMKey hmacKey,
       byte[] data,
       short dataStart,
       short dataLength,
@@ -383,25 +383,6 @@ public interface KMSEProvider {
       byte[] modBuffer,
       short modOff,
       short modLength,
-      byte[] inputDataBuf,
-      short inputDataStart,
-      short inputDataLength,
-      byte[] outputDataBuf,
-      short outputDataStart);
-
-  /**
-   * This is a oneshot operation that signs the data using EC private key.
-   *
-   * @param ecPrivKey of KMAttestationKey.
-   * @param inputDataBuf is the buffer of the input data.
-   * @param inputDataStart is the start of the input data buffer.
-   * @param inputDataLength is the length of the inpur data buffer in bytes.
-   * @param outputDataBuf is the output buffer that contains the signature.
-   * @param outputDataStart is the start of the output data buffer.
-   * @return length of the decrypted data.
-   */
-  short ecSign256(
-      KMAttestationKey ecPrivKey,
       byte[] inputDataBuf,
       short inputDataStart,
       short inputDataLength,
@@ -498,8 +479,8 @@ public interface KMSEProvider {
    * @param outputDataStart is the start of the output data buffer.
    * @return length of the decrypted data.
    */
-  short ecSign256(
-      KMDeviceUniqueKeyPair ecPrivKey,
+  short signWithDeviceUniqueKey(
+      KMKey deviceUniqueKey,
       byte[] inputDataBuf,
       short inputDataStart,
       short inputDataLength,
@@ -688,7 +669,7 @@ public interface KMSEProvider {
    * @param keySizeBits key size in bits.
    * @return An instance of KMMasterKey.
    */
-  KMMasterKey createMasterKey(KMMasterKey masterKey, short keySizeBits);
+  KMKey createMasterKey(KMKey masterKey, short keySizeBits);
 
   /**
    * This function creates an HMACKey and initializes the key with the provided input key data.
@@ -698,8 +679,7 @@ public interface KMSEProvider {
    * @param length length of the buffer.
    * @return An instance of the KMComputedHmacKey.
    */
-  KMComputedHmacKey createComputedHmacKey(
-      KMComputedHmacKey computedHmacKey, byte[] keyData, short offset, short length);
+  KMKey createComputedHmacKey(KMKey computedHmacKey, byte[] keyData, short offset, short length);
 
   /** Returns true if factory provisioned attestation key is supported. */
   boolean isAttestationKeyProvisioned();
@@ -722,8 +702,8 @@ public interface KMSEProvider {
    * @param privKeyLen private key buffer length.
    * @return instance of KMDeviceUniqueKey.
    */
-  KMDeviceUniqueKeyPair createRkpDeviceUniqueKeyPair(
-      KMDeviceUniqueKeyPair key,
+  KMKey createRkpDeviceUniqueKeyPair(
+      KMKey key,
       byte[] pubKey,
       short pubKeyOff,
       short pubKeyLen,
@@ -753,8 +733,7 @@ public interface KMSEProvider {
    * @param length is the length of the key.
    * @return instance of KMPresharedKey.
    */
-  KMPreSharedKey createPreSharedKey(
-      KMPreSharedKey presharedKey, byte[] key, short offset, short length);
+  KMKey createPreSharedKey(KMKey presharedKey, byte[] key, short offset, short length);
 
   /**
    * This function saves the key objects while upgrade.
@@ -799,6 +778,5 @@ public interface KMSEProvider {
    * @param length length of the buffer.
    * @return An instance of the KMRkpMacKey.
    */
-  KMRkpMacKey createRkpMacKey(
-      KMRkpMacKey createComputedHmacKey, byte[] keyData, short offset, short length);
+  KMKey createRkpMacKey(KMKey createComputedHmacKey, byte[] keyData, short offset, short length);
 }
