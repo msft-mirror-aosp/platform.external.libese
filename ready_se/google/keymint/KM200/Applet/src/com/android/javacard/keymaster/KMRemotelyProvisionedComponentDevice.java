@@ -15,8 +15,8 @@
  */
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMDeviceUniqueKeyPair;
 import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMKey;
 import com.android.javacard.seprovider.KMOperation;
 import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.APDU;
@@ -25,95 +25,132 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
-/*
- * This class handles the remote key provisioning. Generates an RKP key and generates a certificate signing
- * request(CSR). The generation of CSR is divided amoung multiple functions to the save the memory inside
- * the Applet. The set of functions to be called sequentially in the order to complete the process of
- * generating the CSR are processBeginSendData, processUpdateKey, processUpdateEekChain,
- * processUpdateChallenge, processFinishSendData and getResponse. ProcessUpdateKey is called N times, where
- * N is the number of keys. Similarly getResponse is called is multiple times till the client receives the
- * response completely.
+/**
+ * This class handles remote key provisioning. Generates an RKP key and generates a certificate
+ * signing request(CSR). The generation of CSR is divided among multiple functions to the save the
+ * memory inside the Applet. The set of functions to be called sequentially in the order to complete
+ * the process of generating the CSR are processBeginSendData, processUpdateKey,
+ * processUpdateEekChain, processUpdateChallenge, processFinishSendData, and getResponse.
+ * ProcessUpdateKey is called Ntimes, where N is the number of keys. Similarly, getResponse is
+ * called multiple times till the client receives the response completely.
  */
-public class RemotelyProvisionedComponentDevice {
+public class KMRemotelyProvisionedComponentDevice {
 
-  // Device Info labels
+  // Below are the device info labels
+  // The string "brand" in hex
   public static final byte[] BRAND = {0x62, 0x72, 0x61, 0x6E, 0x64};
+  // The string "manufacturer" in hex
   public static final byte[] MANUFACTURER = {
     0x6D, 0x61, 0x6E, 0x75, 0x66, 0x61, 0x63, 0x74, 0x75, 0x72, 0x65, 0x72
   };
+  // The string "product" in hex
   public static final byte[] PRODUCT = {0x70, 0x72, 0x6F, 0x64, 0x75, 0x63, 0x74};
+  // The string "model" in hex
   public static final byte[] MODEL = {0x6D, 0x6F, 0x64, 0x65, 0x6C};
+  // // The string "device" in hex
   public static final byte[] DEVICE = {0x64, 0x65, 0x76, 0x69, 0x63, 0x65};
+  // The string "vb_state" in hex
   public static final byte[] VB_STATE = {0x76, 0x62, 0x5F, 0x73, 0x74, 0x61, 0x74, 0x65};
+  // The string "bootloader_state" in hex.
   public static final byte[] BOOTLOADER_STATE = {
     0x62, 0x6F, 0x6F, 0x74, 0x6C, 0x6F, 0x61, 0x64, 0x65, 0x72, 0x5F, 0x73, 0x74, 0x61, 0x74, 0x65
   };
+  // The string "vb_meta_digest" in hdex.
   public static final byte[] VB_META_DIGEST = {
     0X76, 0X62, 0X6D, 0X65, 0X74, 0X61, 0X5F, 0X64, 0X69, 0X67, 0X65, 0X73, 0X74
   };
+  // The string "os_version" in hex.
   public static final byte[] OS_VERSION = {
     0x6F, 0x73, 0x5F, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E
   };
+  // The string "system_patch_level" in hex.
   public static final byte[] SYSTEM_PATCH_LEVEL = {
     0x73, 0x79, 0x73, 0x74, 0x65, 0x6D, 0x5F, 0x70, 0x61, 0x74, 0x63, 0x68, 0x5F, 0x6C, 0x65, 0x76,
     0x65, 0x6C
   };
+  // The string "boot_patch_level" in hex.
   public static final byte[] BOOT_PATCH_LEVEL = {
     0x62, 0x6F, 0x6F, 0x74, 0x5F, 0x70, 0x61, 0x74, 0x63, 0x68, 0x5F, 0x6C, 0x65, 0x76, 0x65, 0x6C
   };
+  // The string "vendor_patch_level"  in hex.
   public static final byte[] VENDOR_PATCH_LEVEL = {
     0x76, 0x65, 0x6E, 0x64, 0x6F, 0x72, 0x5F, 0x70, 0x61, 0x74, 0x63, 0x68, 0x5F, 0x6C, 0x65, 0x76,
     0x65, 0x6C
   };
+  // The string "version" in hex.
   public static final byte[] DEVICE_INFO_VERSION = {0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E};
+  // The string "security_level" in hex.
   public static final byte[] SECURITY_LEVEL = {
     0x73, 0x65, 0x63, 0x75, 0x72, 0x69, 0x74, 0x79, 0x5F, 0x6C, 0x65, 0x76, 0x65, 0x6C
   };
+  // The string "fused" in hex.
   public static final byte[] FUSED = {0x66, 0x75, 0x73, 0x65, 0x64};
-  // Verified boot state values
+  // Below are the Verified boot state values
+  // The string "green" in hex.
   public static final byte[] VB_STATE_GREEN = {0x67, 0x72, 0x65, 0x65, 0x6E};
+  // The string "yellow" in hex.
   public static final byte[] VB_STATE_YELLOW = {0x79, 0x65, 0x6C, 0x6C, 0x6F, 0x77};
+  // The string "orange" in hex.
   public static final byte[] VB_STATE_ORANGE = {0x6F, 0x72, 0x61, 0x6E, 0x67, 0x65};
+  // The string "red" in hex.
   public static final byte[] VB_STATE_RED = {0x72, 0x65, 0x64};
-  // Boot loader state values
+  // Below are the boot loader state values
+  // The string "unlocked" in hex.
   public static final byte[] UNLOCKED = {0x75, 0x6E, 0x6C, 0x6F, 0x63, 0x6B, 0x65, 0x64};
+  // The string "locked" in hex.
   public static final byte[] LOCKED = {0x6C, 0x6F, 0x63, 0x6B, 0x65, 0x64};
   // Device info CDDL schema version
   public static final byte DI_SCHEMA_VERSION = 2;
+  // The string "strongbox" in hex.
   public static final byte[] DI_SECURITY_LEVEL = {
     0x73, 0x74, 0x72, 0x6F, 0x6E, 0x67, 0x62, 0x6F, 0x78
   };
+  // Represents each element size inside the data buffer. Each element has two entries
+  // 1) Length of the element and 2) offset of the element in the data buffer.
   public static final byte DATA_INDEX_ENTRY_SIZE = 4;
+  // It is the offset, which represents the position where the element is present
+  // in the data buffer.
   public static final byte DATA_INDEX_ENTRY_OFFSET = 2;
+  // Flag to denote TRUE
   private static final byte TRUE = 0x01;
+  // Flag to denote FALSE
   private static final byte FALSE = 0x00;
-  // RKP Version
+  // RKP hardware info Version
   private static final short RKP_VERSION = (short) 0x02;
-  // Boot params
+  // Below constants used to denote the type of the boot parameters. Note that these
+  // constants are only defined to be used internally.
   private static final byte OS_VERSION_ID = 0x00;
   private static final byte SYSTEM_PATCH_LEVEL_ID = 0x01;
   private static final byte BOOT_PATCH_LEVEL_ID = 0x02;
   private static final byte VENDOR_PATCH_LEVEL_ID = 0x03;
+  // Configurable flag to denote if Additional certificate chain is supported in the
+  // RKP server.
   private static final boolean IS_ACC_SUPPORTED_IN_RKP_SERVER = false;
+  // The maximum possible output buffer.
   private static final short MAX_SEND_DATA = 512;
-  private static final byte[] google = {0x47, 0x6F, 0x6F, 0x67, 0x6C, 0x65};
+  // The string "Google Strongbox KeyMint 2" in hex.
   private static final byte[] uniqueId = {
-    0x73, 0x74, 0x72, 0x6f, 0x6e, 0x67, 0x62, 0x6f, 0x78, 0x20, 0x6b, 0x65, 0x79, 0x6d, 0x69, 0x6e,
-    0x74
-  }; // "strongbox keymint"
-  // more data or no data
-  private static final byte MORE_DATA = 0x01; // flag to denote more data to retrieve
+    0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x20, 0x53, 0x74, 0x72, 0x6f, 0x6e, 0x67, 0x62, 0x6f, 0x78,
+    0x20, 0x4b, 0x65, 0x79, 0x4d, 0x69, 0x6e, 0x74, 0x20, 0x32
+  };
+  // Flag to denote more response is available to the clients.
+  private static final byte MORE_DATA = 0x01;
+  // Flag to denote no response is available to the clients.
   private static final byte NO_DATA = 0x00;
-  // Response processing states
+  // Below are the response processing states. As the protected data response is huge it is
+  // sent back incrementally and the clients are responsible to call get response multiple times
+  // based on MORE_DATA or NO_DATA flags. BCC - Boot Certificate Chain.
+  // ACC - Additional Certificate Chain.
   private static final byte START_PROCESSING = 0x00;
   private static final byte PROCESSING_BCC_IN_PROGRESS = 0x02;
   private static final byte PROCESSING_BCC_COMPLETE = 0x04;
-  private static final byte PROCESSING_ACC_IN_PROGRESS = 0x08; // Additional certificate chain.
+  private static final byte PROCESSING_ACC_IN_PROGRESS = 0x08;
   private static final byte PROCESSING_ACC_COMPLETE = 0x0A;
-  // data table
+  // The data table size.
   private static final short DATA_SIZE = 512;
+  // Number of entries in the data table.
   private static final byte DATA_INDEX_SIZE = 11;
-  // data offsets
+  // Below are the data table offsets.
   private static final byte EPHEMERAL_MAC_KEY = 0;
   private static final byte TOTAL_KEYS_TO_SIGN = 1;
   private static final byte KEYS_TO_SIGN_COUNT = 2;
@@ -126,12 +163,21 @@ public class RemotelyProvisionedComponentDevice {
   private static final byte RESPONSE_PROCESSING_STATE = 9;
   private static final byte ACC_PROCESSED_LENGTH = 10;
 
-  // data item sizes
-  private static final byte MAC_KEY_SIZE = 32;
+  // Below are some of the sizes defined in the data table.
+  // The size of the Ephemeral Mac key used to sign the rkp public key.
+  private static final byte EPHEMERAL_MAC_KEY_SIZE = 32;
+  // The size of short types.
   private static final byte SHORT_SIZE = 2;
+  // The size of byte types
   private static final byte BYTE_SIZE = 1;
+  // The size of the test mode flag.
   private static final byte TEST_MODE_SIZE = 1;
-  // generate csr states
+  // Below are the different processing stages for generateCSR.
+  // BEGIN -        It is the initial stage where the process is initialized and construction of
+  //                MacedPublickeys are initiated.
+  // UPDATE -       Challenge, EEK and RKP keys are sent to the applet for further process.
+  // FINISH -       MacedPublicKeys are constructed and construction of protected data is initiated.
+  // GET_RESPONSE - Called multiple times by the client till all the protected data is received.
   private static final byte BEGIN = 0x01;
   private static final byte UPDATE = 0x02;
   private static final byte FINISH = 0x04;
@@ -139,19 +185,29 @@ public class RemotelyProvisionedComponentDevice {
 
   // RKP mac key size
   private static final byte RKP_MAC_KEY_SIZE = 32;
+  // This holds the Google ECDSA P256 root key for the Endpoint Encryption Key.
   public static Object[] authorizedEekRoots;
+  // Used to hold the temporary results.
   public short[] rkpTmpVariables;
-  // variables
+  // Data table to hold the entries at the initial stages of generateCSR and which are used
+  // at later stages to construct the response data.
   private byte[] data;
+  // Instance of the CBOR encoder.
   private KMEncoder encoder;
+  // Instance of the CBOR decoder.
   private KMDecoder decoder;
+  // Instance of the KMRepository for memory management.
   private KMRepository repository;
+  // Instance of the provider for cyrpto operations.
   private KMSEProvider seProvider;
+  // Instance of the KMKeymintDataStore to save or retrieve the data.
   private KMKeymintDataStore storeDataInst;
+  // Holds the KMOperation instance. This is used to do multi part update operations.
   private Object[] operation;
+  // Holds the current index in the data table.
   private short[] dataIndex;
 
-  public RemotelyProvisionedComponentDevice(
+  public KMRemotelyProvisionedComponentDevice(
       KMEncoder encoder,
       KMDecoder decoder,
       KMRepository repository,
@@ -181,21 +237,21 @@ public class RemotelyProvisionedComponentDevice {
   private void createAuthorizedEEKRoot() {
     if (authorizedEekRoots == null) {
       authorizedEekRoots =
-        new Object[] {
-          new byte[] {
-            (byte) 0x04, (byte) 0xf7, (byte) 0x14, (byte) 0x8a, (byte) 0xdb, (byte) 0x97,
-            (byte) 0xf4, (byte) 0xcc, (byte) 0x53, (byte) 0xef, (byte) 0xd2, (byte) 0x64,
-            (byte) 0x11, (byte) 0xc4, (byte) 0xe3, (byte) 0x75, (byte) 0x1f, (byte) 0x66,
-            (byte) 0x1f, (byte) 0xa4, (byte) 0x71, (byte) 0x0c, (byte) 0x6c, (byte) 0xcf,
-            (byte) 0xfa, (byte) 0x09, (byte) 0x46, (byte) 0x80, (byte) 0x74, (byte) 0x87,
-            (byte) 0x54, (byte) 0xf2, (byte) 0xad, (byte) 0x5e, (byte) 0x7f, (byte) 0x5b,
-            (byte) 0xf6, (byte) 0xec, (byte) 0xe4, (byte) 0xf6, (byte) 0x19, (byte) 0xcc,
-            (byte) 0xff, (byte) 0x13, (byte) 0x37, (byte) 0xfd, (byte) 0x0f, (byte) 0xa1,
-            (byte) 0xc8, (byte) 0x93, (byte) 0xdb, (byte) 0x18, (byte) 0x06, (byte) 0x76,
-            (byte) 0xc4, (byte) 0x5d, (byte) 0xe6, (byte) 0xd7, (byte) 0x6a, (byte) 0x77,
-            (byte) 0x86, (byte) 0xc3, (byte) 0x2d, (byte) 0xaf, (byte) 0x8f
-          },
-        };
+          new Object[] {
+            new byte[] {
+              (byte) 0x04, (byte) 0xf7, (byte) 0x14, (byte) 0x8a, (byte) 0xdb, (byte) 0x97,
+              (byte) 0xf4, (byte) 0xcc, (byte) 0x53, (byte) 0xef, (byte) 0xd2, (byte) 0x64,
+              (byte) 0x11, (byte) 0xc4, (byte) 0xe3, (byte) 0x75, (byte) 0x1f, (byte) 0x66,
+              (byte) 0x1f, (byte) 0xa4, (byte) 0x71, (byte) 0x0c, (byte) 0x6c, (byte) 0xcf,
+              (byte) 0xfa, (byte) 0x09, (byte) 0x46, (byte) 0x80, (byte) 0x74, (byte) 0x87,
+              (byte) 0x54, (byte) 0xf2, (byte) 0xad, (byte) 0x5e, (byte) 0x7f, (byte) 0x5b,
+              (byte) 0xf6, (byte) 0xec, (byte) 0xe4, (byte) 0xf6, (byte) 0x19, (byte) 0xcc,
+              (byte) 0xff, (byte) 0x13, (byte) 0x37, (byte) 0xfd, (byte) 0x0f, (byte) 0xa1,
+              (byte) 0xc8, (byte) 0x93, (byte) 0xdb, (byte) 0x18, (byte) 0x06, (byte) 0x76,
+              (byte) 0xc4, (byte) 0x5d, (byte) 0xe6, (byte) 0xd7, (byte) 0x6a, (byte) 0x77,
+              (byte) 0x86, (byte) 0xc3, (byte) 0x2d, (byte) 0xaf, (byte) 0x8f
+            },
+          };
     }
   }
 
@@ -250,7 +306,10 @@ public class RemotelyProvisionedComponentDevice {
     KMArray resp = KMArray.cast(respPtr);
     resp.add((short) 0, KMInteger.uint_16(KMError.OK));
     resp.add((short) 1, KMInteger.uint_16(RKP_VERSION));
-    resp.add((short) 2, KMByteBlob.instance(google, (short) 0, (short) google.length));
+    resp.add(
+        (short) 2,
+        KMByteBlob.instance(
+            KMKeymasterApplet.Google, (short) 0, (short) KMKeymasterApplet.Google.length));
     resp.add((short) 3, KMInteger.uint_8(KMType.RKP_CURVE_P256));
     resp.add((short) 4, KMByteBlob.instance(uniqueId, (short) 0, (short) uniqueId.length));
     KMKeymasterApplet.sendOutgoing(apdu, respPtr);
@@ -280,6 +339,25 @@ public class RemotelyProvisionedComponentDevice {
     KMKeymasterApplet.sendOutgoing(apdu, arr);
   }
 
+  /**
+   * This is the first command of the generateCSR.
+   * Input:
+   *   1) Number of RKP keys.
+   *   2) Total length of the encoded CoseKeys (Each RKP key is represented in CoseKey)
+   *   3) Flag which represents Test mode or Production mode.
+   * Process:
+   *   1) Generate Ephemeral mac key and store in the temporary data buffer. This key is
+   *      used to sign Mac_Structure, which contains array of encoded RKP keys,
+   *   2) Initialize the HMAC operation with the ephemeral mac key and do partial sign of the
+   *      Mac_Structure with the input initial data received. A Multipart update on HMAC is
+   *      called on each updateKey command in the second stage.
+   *   3) Store the number of RKP keys and the test mode flag in the temporary data buffer.
+   *   4) Update the phase of the generateCSR function to BEGIN.
+   * Response:
+   *   Send OK response.
+   *
+   * @param apdu Input apdu
+   */
   public void processBeginSendData(APDU apdu) throws Exception {
     try {
       initializeDataTable();
@@ -291,8 +369,8 @@ public class RemotelyProvisionedComponentDevice {
       // Re-purpose the apdu buffer as scratch pad.
       byte[] scratchPad = apdu.getBuffer();
       // Generate ephemeral mac key.
-      short dataEntryIndex = createEntry(EPHEMERAL_MAC_KEY, MAC_KEY_SIZE);
-      seProvider.newRandomNumber(data, dataEntryIndex, MAC_KEY_SIZE);
+      short dataEntryIndex = createEntry(EPHEMERAL_MAC_KEY, EPHEMERAL_MAC_KEY_SIZE);
+      seProvider.newRandomNumber(data, dataEntryIndex, EPHEMERAL_MAC_KEY_SIZE);
       // Initialize hmac operation.
       initHmacOperation();
       // Partially encode CoseMac structure with partial payload.
@@ -322,6 +400,21 @@ public class RemotelyProvisionedComponentDevice {
     }
   }
 
+  /**
+   * This is the second command of the generateCSR.
+   * Input:
+   *   CoseMac0 containing the RKP Key
+   * Process:
+   *   1) Validate the phase of generateCSR. Prior state should be either BEGIN or UPDATE.
+   *   2) Validate the number of RKP Keys received against the value received in first command.
+   *   3) Validate the CoseMac0 structure and extract the RKP Key.
+   *   4) Do Multipart HMAC update operation with the input as RKP key.
+   *   5) Update the number of keys received count into the data buffer.
+   *   6) Update the phase of the generateCSR function to UPDATE.
+   * Response:
+   *   Send OK response.
+   * @param apdu Input apdu
+   */
   public void processUpdateKey(APDU apdu) throws Exception {
     try {
       // The prior state can be BEGIN or UPDATE
@@ -366,6 +459,19 @@ public class RemotelyProvisionedComponentDevice {
     }
   }
 
+  /**
+   * This is the third command of generateCSR.
+   * Input:
+   *   EEK chain ordered from Root to Leaf in CoseSign1 format.
+   * Process:
+   *   1) Validate the phase of generateCSR. Prior state should be UPDATE.
+   *   2) Validate the EEK chain and extract the Leaf EEK
+   *   3) Retrieve the EEK Id and Public key of Leaf EEK and store in the data buffer.
+   *   4) Update the phase of the generateCSR function to UPDATE.
+   * Response:
+   *   Send OK response.
+   * @param apdu Input apdu.
+   */
   public void processUpdateEekChain(APDU apdu) throws Exception {
     try {
       // The prior state can be BEGIN or UPDATE
@@ -408,6 +514,18 @@ public class RemotelyProvisionedComponentDevice {
     }
   }
 
+  /**
+   * This is the fourth command of generateCSR.
+   * Input:
+   *   Challenge
+   * Process:
+   *   1) Validate the phase of generateCSR. Prior state should be either UPDATE or BEGIN.
+   *   2) Store the challenge in the data buffer.
+   *   3) Update the phase of the generateCSR function to UPDATE.
+   * Response:
+   *   Send OK response.
+   * @param apdu Input apdu.
+   */
   public void processUpdateChallenge(APDU apdu) throws Exception {
     try {
       // The prior state can be BEGIN or UPDATE
@@ -438,8 +556,33 @@ public class RemotelyProvisionedComponentDevice {
     }
   }
 
-  // This function returns pubKeysToSignMac, deviceInfo and partially constructed protected data
-  // wrapped inside byte blob. The partial protected data contains Headers and encrypted signedMac.
+  /**
+   * This is the fifth command of generateCSR.
+   * Input:
+   *   No input data.
+   * Process:
+   *   1) Validate the phase of generateCSR. Prior state should be UPDATE.
+   *   2) Check if all the RKP keys are received if not throw exception.
+   *   3) Finalize the HMAC operation and get the signed Mac_Structure which is called as
+   *      pubKeysToSignMac.
+   *   4) Start constructing the partial protected data. Create a random
+   *      nonce, initialize the AESGCM operation with the session key derived from
+   *      HKDF(ECDH(EPHEMERAL_EC_KEY, EEK_KEY), KdfContext)
+   *   5) Construct Encrypt_Structure which acts as AAD for AES-GCM operation.
+   *   6) The payload for the Protected Data is [SignedMac, BCC, ACC]. Construct partial
+   *      SignedMac structure.
+   *   7) Note that the HAL has to construct the CoseEncrypt structure by collecting all
+   *      the pieces returned from Applet.
+   * Response:
+   *   OK
+   *   pubKeysToSignMac - Containes the maced RKP public keys.
+   *   deviceInfo - CBOR encoded device info
+   *   protectedHeader - CoseEncrypt protected header
+   *   unProtectedHeader - CoseEncrypt unprotected header.
+   *   ParitalCipherText - partial encrypted payload of CoseEncrypt structure.
+   *   Flag to represent there is more data to retrieve.
+   * @param apdu Input apdu.
+   */
   public void processFinishSendData(APDU apdu) throws Exception {
     try {
       // The prior state should be UPDATE.
@@ -492,6 +635,26 @@ public class RemotelyProvisionedComponentDevice {
     }
   }
 
+  /**
+   * This is the sixth and the last command of generateCSR. This command is called multiple
+   * times by the HAL until all the cipher data and receipient structure is received.
+   * Input:
+   *   No input data.
+   * Process:
+   *   First the BootCertificateChain is processed: Encrypt the boot certificate chain and return
+   *   the BCC. Mark the state as PROCESSING_BCC_COMPLETE.
+   *   Next the AdditionalCertificateChain is processed: Incrementally encrypt ACC and send back
+   *   a chunks of data. Each chunk is 512 bytes. if the processing of ACC is still in progress
+   *   mark the state as PROCESSING_ACC_IN_PROGRESS otherwise mark the state as
+   *   PROCESSING_ACC_COMPLETE.
+   *   Finally construct and return the CoseReceipient structure.
+   * Response:
+   *   OK
+   *   cipher text: It can be either encrypted bcc or encrypted acc
+   *   Receipient structure: This will be empty will returning the encrypted acc or bcc.
+   *   Flag to represent there is more data to retrieve.
+   * @param apdu Input apdu.
+   */
   public void processGetResponse(APDU apdu) throws Exception {
     try {
       // The prior state should be FINISH.
@@ -643,7 +806,6 @@ public class RemotelyProvisionedComponentDevice {
             KMCose.COSE_KEY_TYPE_EC2,
             KMType.INVALID_VALUE,
             KMCose.COSE_ALG_ES256,
-            KMType.INVALID_VALUE,
             KMCose.COSE_ECCURVE_256)) {
       KMException.throwIt(KMError.STATUS_FAILED);
     }
@@ -790,10 +952,7 @@ public class RemotelyProvisionedComponentDevice {
   }
 
   private short createSignedMac(
-      KMDeviceUniqueKeyPair deviceUniqueKeyPair,
-      byte[] scratchPad,
-      short deviceMapPtr,
-      short pubKeysToSign) {
+      KMKey deviceUniqueKeyPair, byte[] scratchPad, short deviceMapPtr, short pubKeysToSign) {
     // Challenge
     short dataEntryIndex = getEntry(CHALLENGE);
     short challengePtr = KMByteBlob.instance(data, dataEntryIndex, getEntryLength(CHALLENGE));
@@ -830,14 +989,24 @@ public class RemotelyProvisionedComponentDevice {
     signStructure =
         KMKeymasterApplet.encodeToApduBuffer(
             signStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
+    // 72 is the maximum ECDSA Signature length.
+    short maxEcdsaSignLen = 72;
+    short reclaimIndex = repository.allocReclaimableMemory(maxEcdsaSignLen);
     short len =
-        seProvider.ecSign256(
-            deviceUniqueKeyPair, scratchPad, (short) 0, signStructure, scratchPad, signStructure);
+        seProvider.signWithDeviceUniqueKey(
+            deviceUniqueKeyPair,
+            scratchPad,
+            (short) 0,
+            signStructure,
+            repository.getHeap(),
+            reclaimIndex);
+    Util.arrayCopyNonAtomic(repository.getHeap(), reclaimIndex, scratchPad, (short) 0, len);
+    repository.reclaimMemory(maxEcdsaSignLen);
     len =
         KMAsn1Parser.instance()
             .decodeEcdsa256Signature(
-                KMByteBlob.instance(scratchPad, signStructure, len), scratchPad, signStructure);
-    signStructure = KMByteBlob.instance(scratchPad, signStructure, len);
+                KMByteBlob.instance(scratchPad, (short) 0, len), scratchPad, (short) 0);
+    signStructure = KMByteBlob.instance(scratchPad, (short) 0, len);
 
     /* Construct unprotected headers */
     short unprotectedHeader = KMArray.instance((short) 0);
@@ -848,8 +1017,8 @@ public class RemotelyProvisionedComponentDevice {
         protectedHeaders, unprotectedHeader, ephmeralMacKey, signStructure);
   }
 
-  private KMDeviceUniqueKeyPair createDeviceUniqueKeyPair(boolean testMode, byte[] scratchPad) {
-    KMDeviceUniqueKeyPair deviceUniqueKeyPair;
+  private KMKey createDeviceUniqueKeyPair(boolean testMode, byte[] scratchPad) {
+    KMKey deviceUniqueKeyPair;
     rkpTmpVariables[0] = 0;
     rkpTmpVariables[1] = 0;
     if (testMode) {
@@ -1253,7 +1422,6 @@ public class RemotelyProvisionedComponentDevice {
             KMInteger.uint_8(KMCose.COSE_KEY_TYPE_EC2),
             KMType.INVALID_VALUE,
             KMNInteger.uint_8(KMCose.COSE_ALG_ES256),
-            KMType.INVALID_VALUE,
             KMInteger.uint_8(KMCose.COSE_ECCURVE_256),
             data,
             pubKeyIndex,
@@ -1362,7 +1530,7 @@ public class RemotelyProvisionedComponentDevice {
 
   private short processSignedMac(byte[] scratchPad, short pubKeysToSignMac, short deviceInfo) {
     // Construct SignedMac
-    KMDeviceUniqueKeyPair deviceUniqueKeyPair =
+    KMKey deviceUniqueKeyPair =
         createDeviceUniqueKeyPair((TRUE == data[getEntry(TEST_MODE)]) ? true : false, scratchPad);
     // Create signedMac
     short signedMac =
@@ -1414,7 +1582,6 @@ public class RemotelyProvisionedComponentDevice {
             KMInteger.uint_8(KMCose.COSE_KEY_TYPE_EC2),
             KMType.INVALID_VALUE,
             KMNInteger.uint_8(KMCose.COSE_ALG_ES256),
-            KMType.INVALID_VALUE,
             KMInteger.uint_8(KMCose.COSE_ECCURVE_256),
             KMByteBlob.cast(pubKey).getBuffer(),
             KMByteBlob.cast(pubKey).getStartOff(),
@@ -1565,17 +1732,17 @@ public class RemotelyProvisionedComponentDevice {
       short signatureStart) {
     short result;
     if (testMode) {
-      short macKey = KMByteBlob.instance(MAC_KEY_SIZE);
+      short macKey = KMByteBlob.instance(EPHEMERAL_MAC_KEY_SIZE);
       Util.arrayFillNonAtomic(
           KMByteBlob.cast(macKey).getBuffer(),
           KMByteBlob.cast(macKey).getStartOff(),
-          MAC_KEY_SIZE,
+          EPHEMERAL_MAC_KEY_SIZE,
           (byte) 0);
       result =
           seProvider.hmacSign(
               KMByteBlob.cast(macKey).getBuffer(),
               KMByteBlob.cast(macKey).getStartOff(),
-              MAC_KEY_SIZE,
+              EPHEMERAL_MAC_KEY_SIZE,
               data,
               dataStart,
               dataLength,
