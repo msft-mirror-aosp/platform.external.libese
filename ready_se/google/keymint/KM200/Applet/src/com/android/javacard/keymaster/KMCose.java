@@ -71,7 +71,6 @@ public class KMCose {
   public static final short COSE_KEY_KEY_TYPE = 1;
   public static final short COSE_KEY_KEY_ID = 2;
   public static final short COSE_KEY_ALGORITHM = 3;
-  public static final short COSE_KEY_KEY_OPS = 4;
   public static final short COSE_KEY_CURVE = -1;
   public static final short COSE_KEY_PUBKEY_X = -2;
   public static final short COSE_KEY_PUBKEY_Y = -3;
@@ -112,7 +111,6 @@ public class KMCose {
     KMCose.COSE_KEY_KEY_TYPE,
     KMCose.COSE_KEY_KEY_ID,
     KMCose.COSE_KEY_ALGORITHM,
-    KMCose.COSE_KEY_KEY_OPS,
     KMCose.COSE_KEY_CURVE,
     KMCose.COSE_KEY_PUBKEY_X,
     KMCose.COSE_KEY_PUBKEY_Y,
@@ -452,12 +450,13 @@ public class KMCose {
   }
 
   /**
-   * Constructs a CoseKey with the provided input paramters.
+   * Constructs a CoseKey with the provided input parameters. Note that construction of the key_ops
+   * label is not needed to be supported. In the KeyMint2.0 specifications: The CoseKey inside
+   * MacedPublicKeys and DiceCertChain does not have key_ops label.
    *
    * @param keyType Instance of the identification of the key type.
    * @param keyId Instance of key identification value.
    * @param keyAlg Instance of the algorithm that is used with this key.
-   * @param keyOps Instance of the operation that this key is used for.
    * @param curve Instance of the EC curve that is used with this key.
    * @param pubKey Buffer containing the public key.
    * @param pubKeyOff Start offset of the buffer.
@@ -471,7 +470,6 @@ public class KMCose {
       short keyType,
       short keyId,
       short keyAlg,
-      short keyOps,
       short curve,
       byte[] pubKey,
       short pubKeyOff,
@@ -486,8 +484,7 @@ public class KMCose {
     short xPtr = KMByteBlob.instance(pubKey, pubKeyOff, pubKeyLen);
     short yPtr = KMByteBlob.instance(pubKey, (short) (pubKeyOff + pubKeyLen), pubKeyLen);
     short coseKey =
-        constructCoseKey(
-            buff, keyType, keyId, keyAlg, keyOps, curve, xPtr, yPtr, privKeyPtr, testMode);
+        constructCoseKey(buff, keyType, keyId, keyAlg, curve, xPtr, yPtr, privKeyPtr, testMode);
     KMCoseKey.cast(coseKey).canonicalize();
     return coseKey;
   }
@@ -499,7 +496,6 @@ public class KMCose {
    * @param keyType instance of KMInteger/KMNInteger which holds valid COSE key types.
    * @param keyId instance of KMByteBlob which holds key identifier value.
    * @param keyAlg instance of KMInteger/KMNInteger which holds valid COSE key algorithm.
-   * @param keyOps instance of KMInteger/KMNInteger which holds valid COSE key operations.
    * @param curve instance of KMInteger/KMNInteger which holds valid COSE EC curve.
    * @param pubX instance of KMByteBlob which holds EC public key's x value.
    * @param pubY instance of KMByteBlob which holds EC public key's y value.
@@ -512,21 +508,19 @@ public class KMCose {
       short keyType,
       short keyId,
       short keyAlg,
-      short keyOps,
       short curve,
       short pubX,
       short pubY,
       short priv,
       boolean includeTestKey) {
-    short valueIndex = 8;
+    short valueIndex = 7;
     buff[0] = keyType;
     buff[1] = keyId;
     buff[2] = keyAlg;
-    buff[3] = keyOps;
-    buff[4] = curve;
-    buff[5] = pubX;
-    buff[6] = pubY;
-    buff[7] = priv;
+    buff[3] = curve;
+    buff[4] = pubX;
+    buff[5] = pubY;
+    buff[6] = priv;
     for (short i = valueIndex; i < 16; i++) {
       buff[i] = KMType.INVALID_VALUE;
     }
