@@ -298,6 +298,10 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   // will never be used by the base line code in future.
   private static final byte INS_KM_VENDOR_START_CMD = (byte) 0xCD;
   private static final byte INS_KM_VENDOR_END_CMD = (byte) 0xFF;
+  // Index in apduFlagsStatus[] to check if instruction command is case 4 type in the Apdu
+  protected static final byte APDU_CASE4_COMMAND_STATUS_INDEX = 0;
+  // Index in apduFlagsStatus[] to check if Apdu setIncomingAndReceive function is called
+  protected static final byte APDU_INCOMING_AND_RECEIVE_STATUS_INDEX = 1;
   // The maximum buffer size of combined seed and nonce.
   private static final byte HMAC_SHARED_PARAM_MAX_SIZE = 64;
   // Instance of RemotelyProvisionedComponentDevice, used to redirect the rkp commands.
@@ -325,6 +329,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   // The transportKey is retrieved and stored in this buffer at stage 1) and is later used in
   // stage 2).
   protected static byte[] wrappingKey;
+  // Transient byte array used to store the flags if APDU command type is of case 4 and if
+  // APDU setIncomingAndReceive() function is called or not.
+  protected static byte[] apduStatusFlags;
 
   /** Registers this applet. */
   protected KMKeymasterApplet(KMSEProvider seImpl) {
@@ -340,6 +347,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     wrappingKey =
         JCSystem.makeTransientByteArray((short) (WRAPPING_KEY_SIZE + 1), JCSystem.CLEAR_ON_RESET);
     resetWrappingKey();
+    apduStatusFlags = JCSystem.makeTransientByteArray((short) 2, JCSystem.CLEAR_ON_RESET);
     opTable = new KMOperationState[MAX_OPERATIONS_COUNT];
     short index = 0;
     while (index < MAX_OPERATIONS_COUNT) {
@@ -368,6 +376,16 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     if (((short) (bufferLength + bufferStartOffset)) > ((short) repository.getHeap().length)) {
       ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
     }
+
+    /* In T=0 protocol, On a case 4 command, setIncomingAndReceive() must
+     * be invoked prior to calling setOutgoing(). Otherwise, erroneous
+     * behavior may result
+     * */
+    if (apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] == 1
+        && apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] == 0
+        && APDU.getProtocol() == APDU.PROTOCOL_T0) {
+      apdu.setIncomingAndReceive();
+    }
     // Send data
     apdu.setOutgoing();
     apdu.setOutgoingLength(bufferLength);
@@ -379,6 +397,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     byte[] srcBuffer = apdu.getBuffer();
     short recvLen = apdu.setIncomingAndReceive();
     short srcOffset = apdu.getOffsetCdata();
+    apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] = 1;
     // TODO add logic to handle the extended length buffer. In this case the memory can be reused
     //  from extended buffer.
     short bufferLength = apdu.getIncomingLength();
@@ -1323,6 +1342,28 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
   }
 
+  public void updateApduStatusFlags(short apduIns) {
+    switch (apduIns) {
+      case INS_EXPORT_KEY_CMD:
+      case INS_DELETE_ALL_KEYS_CMD:
+      case INS_DESTROY_ATT_IDS_CMD:
+      case INS_VERIFY_AUTHORIZATION_CMD:
+      case INS_GET_HMAC_SHARING_PARAM_CMD:
+      case INS_GET_HW_INFO_CMD:
+      case INS_EARLY_BOOT_ENDED_CMD:
+      case INS_GET_ROT_CHALLENGE_CMD:
+      case INS_GET_ROT_DATA_CMD:
+      case INS_GET_RKP_HARDWARE_INFO:
+      case INS_FINISH_SEND_DATA_CMD:
+      case INS_GET_RESPONSE_CMD:
+        apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] = 0;
+        break;
+      default:
+        // By default the instruction is set to case 4 command instruction.
+        break;
+    }
+  }
+
   /**
    * Processes an incoming APDU and handles it using command objects.
    *
@@ -1766,6 +1807,15 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     Util.setShort(buffer, bufferStartOffset, (short) 0x8400);
 
     short bufferLength = (short) (KMRepository.HEAP_SIZE - bufferStartOffset);
+    /* In T=0 protocol, On a case 4 command, setIncomingAndReceive() must
+     * be invoked prior to calling setOutgoing(). Otherwise, erroneous
+     * behavior may result
+     * */
+    if (apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] == 1
+        && apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] == 0
+        && APDU.getProtocol() == APDU.PROTOCOL_T0) {
+      apdu.setIncomingAndReceive();
+    }
     // Send data
     apdu.setOutgoing();
     apdu.setOutgoingLength(bufferLength);
