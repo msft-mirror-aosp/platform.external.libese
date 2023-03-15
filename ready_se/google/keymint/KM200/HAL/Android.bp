@@ -13,6 +13,25 @@
 // limitations under the License.
 //
 
+package {
+    default_applicable_licenses: [
+        "external_libese_ready_se_google_keymint_KM200_HAL_license",
+    ],
+}
+
+// Added automatically by a large-scale-change
+// See: http://go/android-license-faq
+license {
+    name: "external_libese_ready_se_google_keymint_KM200_HAL_license",
+    visibility: [":__subpackages__"],
+    license_kinds: [
+        "SPDX-license-identifier-Apache-2.0",
+    ],
+    license_text: [
+        "LICENSE",
+    ],
+}
+
 cc_library {
     name: "libjc_keymint",
     defaults: [
@@ -109,7 +128,6 @@ cc_binary {
         "service.cpp",
     ],
     required: [
-        "RemoteProvisioner",
         "android.hardware.hardware_keystore.jc-strongbox-keymint.xml",
     ],
 }
