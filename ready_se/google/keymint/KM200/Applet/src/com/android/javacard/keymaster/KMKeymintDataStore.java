@@ -1,12 +1,8 @@
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMComputedHmacKey;
 import com.android.javacard.seprovider.KMDataStoreConstants;
-import com.android.javacard.seprovider.KMDeviceUniqueKeyPair;
 import com.android.javacard.seprovider.KMException;
-import com.android.javacard.seprovider.KMMasterKey;
-import com.android.javacard.seprovider.KMPreSharedKey;
-import com.android.javacard.seprovider.KMRkpMacKey;
+import com.android.javacard.seprovider.KMKey;
 import com.android.javacard.seprovider.KMSEProvider;
 import com.android.javacard.seprovider.KMUpgradable;
 import javacard.framework.ISO7816;
@@ -15,6 +11,12 @@ import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import org.globalplatform.upgrade.Element;
 
+/**
+ * This is a storage class which helps in storing the provisioned data, ROT, OS version, Boot patch
+ * level, Vendor Patchlevel, HMAC nonce, computed shared secret, 8 auth tags, device-locked,
+ * device-locked timestamp and device-locked password only. Only the provisioned data is restored
+ * back during applet upgrades and the remaining data is flushed.
+ */
 public class KMKeymintDataStore implements KMUpgradable {
 
   // Data table configuration
@@ -66,7 +68,6 @@ public class KMKeymintDataStore implements KMUpgradable {
   private static final byte DEVICE_STATUS_FLAG_SIZE = 1;
   private static final short ADDITIONAL_CERT_CHAIN_MAX_SIZE = 2500; // First 2 bytes for length.
   private static final short BCC_MAX_SIZE = 512;
-  private static final byte[] zero = {0, 0, 0, 0, 0, 0, 0, 0};
   private static KMKeymintDataStore kmDataStore;
   // Secure Boot Mode
   public byte secureBootMode;
@@ -93,12 +94,12 @@ public class KMKeymintDataStore implements KMUpgradable {
   private KMRepository repository;
   private byte[] additionalCertChain;
   private byte[] bcc;
-  private KMMasterKey masterKey;
-  private KMDeviceUniqueKeyPair testDeviceUniqueKeyPair;
-  private KMDeviceUniqueKeyPair deviceUniqueKeyPair;
-  private KMPreSharedKey preSharedKey;
-  private KMComputedHmacKey computedHmacKey;
-  private KMRkpMacKey rkpMacKey;
+  private KMKey masterKey;
+  private KMKey testDeviceUniqueKeyPair;
+  private KMKey deviceUniqueKeyPair;
+  private KMKey preSharedKey;
+  private KMKey computedHmacKey;
+  private KMKey rkpMacKey;
   private byte[] oemRootPublicKey;
   private short provisionStatus;
 
@@ -527,14 +528,20 @@ public class KMKeymintDataStore implements KMUpgradable {
     buf[offset] = state;
   }
 
-  public KMMasterKey createMasterKey(short keySizeBits) {
+  // The master key should only be generated during applet installation and
+  // during a device factory reset event.
+  public KMKey createMasterKey(short keySizeBits) {
     if (masterKey == null) {
       masterKey = seProvider.createMasterKey(masterKey, keySizeBits);
     }
-    return (KMMasterKey) masterKey;
+    return (KMKey) masterKey;
   }
 
-  public KMMasterKey getMasterKey() {
+  public KMKey regenerateMasterKey() {
+    return seProvider.createMasterKey(masterKey, KMKeymasterApplet.MASTER_KEY_SIZE);
+  }
+
+  public KMKey getMasterKey() {
     return masterKey;
   }
 
@@ -547,7 +554,7 @@ public class KMKeymintDataStore implements KMUpgradable {
     }
   }
 
-  public KMPreSharedKey getPresharedKey() {
+  public KMKey getPresharedKey() {
     if (preSharedKey == null) {
       KMException.throwIt(KMError.INVALID_DATA);
     }
@@ -565,14 +572,14 @@ public class KMKeymintDataStore implements KMUpgradable {
     }
   }
 
-  public KMComputedHmacKey getComputedHmacKey() {
+  public KMKey getComputedHmacKey() {
     if (computedHmacKey == null) {
       KMException.throwIt(KMError.INVALID_DATA);
     }
     return computedHmacKey;
   }
 
-  public KMDeviceUniqueKeyPair createRkpTestDeviceUniqueKeyPair(
+  public KMKey createRkpTestDeviceUniqueKeyPair(
       byte[] pubKey,
       short pubKeyOff,
       short pubKeyLen,
@@ -596,7 +603,7 @@ public class KMKeymintDataStore implements KMUpgradable {
     return testDeviceUniqueKeyPair;
   }
 
-  public KMDeviceUniqueKeyPair createRkpDeviceUniqueKeyPair(
+  public KMKey createRkpDeviceUniqueKeyPair(
       byte[] pubKey,
       short pubKeyOff,
       short pubKeyLen,
@@ -614,8 +621,8 @@ public class KMKeymintDataStore implements KMUpgradable {
     return deviceUniqueKeyPair;
   }
 
-  public KMDeviceUniqueKeyPair getRkpDeviceUniqueKeyPair(boolean testMode) {
-    return ((KMDeviceUniqueKeyPair) (testMode ? testDeviceUniqueKeyPair : deviceUniqueKeyPair));
+  public KMKey getRkpDeviceUniqueKeyPair(boolean testMode) {
+    return ((KMKey) (testMode ? testDeviceUniqueKeyPair : deviceUniqueKeyPair));
   }
 
   public void createRkpMacKey(byte[] keydata, short offset, short length) {
@@ -626,7 +633,7 @@ public class KMKeymintDataStore implements KMUpgradable {
     }
   }
 
-  public KMRkpMacKey getRkpMacKey() {
+  public KMKey getRkpMacKey() {
     if (rkpMacKey == null) {
       KMException.throwIt(KMError.INVALID_DATA);
     }
@@ -954,11 +961,11 @@ public class KMKeymintDataStore implements KMUpgradable {
     bcc = (byte[]) element.readObject();
 
     // Read Key Objects
-    masterKey = (KMMasterKey) seProvider.onRestore(element);
+    masterKey = (KMKey) seProvider.onRestore(element);
     seProvider.onRestore(element); // pop computedHmacKey
-    preSharedKey = (KMPreSharedKey) seProvider.onRestore(element);
-    deviceUniqueKeyPair = (KMDeviceUniqueKeyPair) seProvider.onRestore(element);
-    rkpMacKey = (KMRkpMacKey) seProvider.onRestore(element);
+    preSharedKey = (KMKey) seProvider.onRestore(element);
+    deviceUniqueKeyPair = (KMKey) seProvider.onRestore(element);
+    rkpMacKey = (KMKey) seProvider.onRestore(element);
     handleProvisionStatusUpgrade(oldDataTable, oldDataIndex);
   }
 
@@ -981,10 +988,10 @@ public class KMKeymintDataStore implements KMUpgradable {
     bcc = (byte[]) element.readObject();
     oemRootPublicKey = (byte[]) element.readObject();
     // Read Key Objects
-    masterKey = (KMMasterKey) seProvider.onRestore(element);
-    preSharedKey = (KMPreSharedKey) seProvider.onRestore(element);
-    deviceUniqueKeyPair = (KMDeviceUniqueKeyPair) seProvider.onRestore(element);
-    rkpMacKey = (KMRkpMacKey) seProvider.onRestore(element);
+    masterKey = (KMKey) seProvider.onRestore(element);
+    preSharedKey = (KMKey) seProvider.onRestore(element);
+    deviceUniqueKeyPair = (KMKey) seProvider.onRestore(element);
+    rkpMacKey = (KMKey) seProvider.onRestore(element);
   }
 
   public void getProvisionStatus(byte[] dataTable, byte[] scratchpad, short offset) {

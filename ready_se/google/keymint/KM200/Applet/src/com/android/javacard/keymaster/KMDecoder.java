@@ -22,6 +22,11 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
+/**
+ * This class decodes the CBOR format data into a KMType structure. It interprets the input CBOR
+ * format using the input expression provided. Validation of KeyMint tags and tag types happens in
+ * the process of decoding, while constructing the subtype of a KMType structure.
+ */
 public class KMDecoder {
 
   // major types
@@ -235,7 +240,9 @@ public class KMDecoder {
   private short peekCosePairTagType() {
     byte[] buffer = (byte[]) bufferRef[0];
     short startOff = scratchBuf[START_OFFSET];
-    // Cose Key should be always either UINT or Negative int
+    // This decoder is confined to support only key and value types which are required for remote
+    // key provisioning. So keys of type (int / uint) and values of type (int / uint / simple / bstr
+    // / tstr / Cosekey) only are supported.
     if ((buffer[startOff] & MAJOR_TYPE_MASK) != UINT_TYPE
         && (buffer[startOff] & MAJOR_TYPE_MASK) != NEG_INT_TYPE) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);

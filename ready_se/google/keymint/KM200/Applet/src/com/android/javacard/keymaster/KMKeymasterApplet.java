@@ -18,8 +18,8 @@ package com.android.javacard.keymaster;
 
 import com.android.javacard.seprovider.KMAttestationCert;
 import com.android.javacard.seprovider.KMDataStoreConstants;
-import com.android.javacard.seprovider.KMDeviceUniqueKeyPair;
 import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMKey;
 import com.android.javacard.seprovider.KMOperation;
 import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.APDU;
@@ -33,49 +33,62 @@ import javacard.security.CryptoException;
 import javacardx.apdu.ExtendedLength;
 
 /**
- * KMKeymasterApplet implements the javacard applet. It creates repository and other install time
- * objects. It also implements the keymaster state machine and handles javacard applet life cycle
- * events.
+ * KMKeymasterApplet implements the javacard applet. It creates an instance of the KMRepository and
+ * other install time objects. It also implements the keymaster state machine and handles javacard
+ * applet life cycle events.
  */
 public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLength {
 
   // Constants.
+  // Represents RSA_PUBLIC_EXPONENT value 65537.
   public static final byte[] F4 = {0x01, 0x00, 0x01};
+  // Block size of AES algorithm.
   public static final byte AES_BLOCK_SIZE = 16;
+  // Block size of DES algorithm.
   public static final byte DES_BLOCK_SIZE = 8;
+  // The Key size in bits for the master key.
   public static final short MASTER_KEY_SIZE = 128;
+  // The Key size of the transport key used in importWrappedKey.
   public static final byte WRAPPING_KEY_SIZE = 32;
+  // The maximum allowed simultaneous operations.
   public static final byte MAX_OPERATIONS_COUNT = 4;
+  // The size of the verified boot key in ROT.
   public static final byte VERIFIED_BOOT_KEY_SIZE = 32;
+  // The size of the verified boot hash in ROT.
   public static final byte VERIFIED_BOOT_HASH_SIZE = 32;
-  public static final byte BOOT_PATCH_LVL_SIZE = 4;
+  // The security level of TEE.
   public static final byte TRUSTED_ENVIRONMENT = 1;
   // "Keymaster HMAC Verification" - used for HMAC key verification.
   public static final byte[] sharingCheck = {
     0x4B, 0x65, 0x79, 0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x20, 0x48, 0x4D, 0x41, 0x43, 0x20, 0x56,
     0x65, 0x72, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6F, 0x6E
   };
-  // "KeymasterSharedMac"
+  // The ckdfLabel "KeymasterSharedMac" in hex.
   public static final byte[] ckdfLabel = {
     0x4B, 0x65, 0x79, 0x6D, 0x61, 0x73, 0x74, 0x65, 0x72, 0x53, 0x68, 0x61, 0x72, 0x65, 0x64, 0x4D,
     0x61, 0x63
   };
-  // "Auth Verification"
+  // The "Auth Verification" string in hex.
   public static final byte[] authVerification = {
     0x41, 0x75, 0x74, 0x68, 0x20, 0x56, 0x65, 0x72, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6F,
     0x6E
   };
-  // "confirmation token"
+  // The "confirmation token" string in hex.
   public static final byte[] confirmationToken = {
     0x63, 0x6F, 0x6E, 0x66, 0x69, 0x72, 0x6D, 0x61, 0x74, 0x69, 0x6F, 0x6E, 0x20, 0x74, 0x6F, 0x6B,
     0x65, 0x6E
   };
+  // The maximum buffer size for the encoded COSE structures.
   public static final short MAX_COSE_BUF_SIZE = (short) 1024;
   // Maximum allowed buffer size for to encode the key parameters
-  // which is used while creating mac for key paramters.
+  // which is used while creating mac for key parameters.
   public static final short MAX_KEY_PARAMS_BUF_SIZE = (short) 3072; // 3K
-  // Data Dictionary items
+  // Temporary variables array size to store intermediary results.
   public static final byte TMP_VARIABLE_ARRAY_SIZE = 5;
+  // Data Dictionary items
+  // Maximum Dictionary size.
+  public static final byte DATA_ARRAY_SIZE = 39;
+  // Below are the offsets of the data dictionary items.
   public static final byte KEY_PARAMETERS = 0;
   public static final byte KEY_CHARACTERISTICS = 1;
   public static final byte HIDDEN_PARAMETERS = 2;
@@ -115,8 +128,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   public static final byte CONFIRMATION_TOKEN = 36;
   public static final byte KEY_BLOB_VERSION_DATA_OFFSET = 37;
   public static final byte CUSTOM_TAGS = 38;
-  public static final byte DATA_ARRAY_SIZE = 39;
-  // Keyblob offsets.
+  // Below are the Keyblob offsets.
   public static final byte KEY_BLOB_VERSION_OFFSET = 0;
   public static final byte KEY_BLOB_SECRET = 1;
   public static final byte KEY_BLOB_NONCE = 2;
@@ -124,8 +136,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   public static final byte KEY_BLOB_PARAMS = 4;
   public static final byte KEY_BLOB_CUSTOM_TAGS = 5;
   public static final byte KEY_BLOB_PUB_KEY = 6;
-  // AES GCM constants
+  // AES GCM Auth tag length to be used while encrypting or decrypting the KeyBlob.
   public static final byte AES_GCM_AUTH_TAG_LENGTH = 16;
+  // AES GCM nonce length to be used while encrypting or decrypting the KeyBlob.
   public static final byte AES_GCM_NONCE_LENGTH = 12;
   // KEYBLOB_CURRENT_VERSION goes into KeyBlob and will affect all
   // the KeyBlobs if it is changed. please increment this
@@ -134,21 +147,29 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   public static final short KEYBLOB_CURRENT_VERSION = 3;
   // KeyBlob Verion 1 constant.
   public static final short KEYBLOB_VERSION_1 = 1;
-  // KeyBlob array size constants.
+  // Array sizes of KeyBlob under different versions.
+  // The array size of a Symmetric key's KeyBlob for Version2 and Version3
   public static final byte SYM_KEY_BLOB_SIZE_V2_V3 = 6;
+  // The array size of a Asymmetric key's KeyBlob for Version2 and Version3
   public static final byte ASYM_KEY_BLOB_SIZE_V2_V3 = 7;
+  // The array size of a Symmetric key's KeyBlob for Version1
   public static final byte SYM_KEY_BLOB_SIZE_V1 = 5;
+  // The array size of a Asymmetric key's KeyBlob for Version1
   public static final byte ASYM_KEY_BLOB_SIZE_V1 = 6;
+  // The array size of a Symmetric key's KeyBlob for Version0
   public static final byte SYM_KEY_BLOB_SIZE_V0 = 4;
+  // The array size of a Asymmetric key's KeyBlob for Version0
   public static final byte ASYM_KEY_BLOB_SIZE_V0 = 5;
   // Key type constants
+  // Represents the type of the Symmetric key.
   public static final byte SYM_KEY_TYPE = 0;
+  // Represents the type of the Asymmetric key.
   public static final byte ASYM_KEY_TYPE = 1;
   // SHA-256 Digest length in bits
   public static final short SHA256_DIGEST_LEN_BITS = 256;
   // Minimum HMAC length in bits
   public static final short MIN_HMAC_LENGTH_BITS = 64;
-  // Provision reporting status
+  // Below are the constants for provision reporting status
   public static final short NOT_PROVISIONED = 0x0000;
   public static final short PROVISION_STATUS_ATTESTATION_KEY = 0x0001;
   public static final short PROVISION_STATUS_ATTESTATION_CERT_CHAIN = 0x0002;
@@ -161,20 +182,29 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   public static final short PROVISION_STATUS_SE_LOCKED = 0x0100;
   public static final short PROVISION_STATUS_OEM_PUBLIC_KEY = 0x0200;
   public static final short PROVISION_STATUS_SECURE_BOOT_MODE = 0x0400;
+  // This is the P1P2 constant of the APDU command header.
   protected static final short KM_HAL_VERSION = (short) 0x5000;
   // OEM lock / unlock verification constants.
+  // This is the verification label to authenticate the OEM to lock the provisioning for the
+  // OEM provision commands.
   protected static final byte[] OEM_LOCK_PROVISION_VERIFICATION_LABEL = { // "OEM Provisioning Lock"
     0x4f, 0x45, 0x4d, 0x20, 0x50, 0x72, 0x6f, 0x76, 0x69, 0x73, 0x69, 0x6f, 0x6e, 0x69, 0x6e, 0x67,
     0x20, 0x4c, 0x6f, 0x63, 0x6b
   };
+  // This is the verification label to authenticate the OEM to unlock the provisioning for the
+  // OEM provision commands.
   protected static final byte[] OEM_UNLOCK_PROVISION_VERIFICATION_LABEL = { // "Enable RMA"
     0x45, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x20, 0x52, 0x4d, 0x41
   };
-  // AddRngEntropy
+  // The maximum size of the seed allowed for the RNG entropy
   protected static final short MAX_SEED_SIZE = 2048;
+  // The maximum size of the certificate returned by the generate key command.
   protected static final short MAX_CERT_SIZE = 3000;
+  // The maximum size of the encoded key characteristics in CBOR.
   protected static final short MAX_KEY_CHARS_SIZE = 512;
+  // The maximum size of the serialized KeyBlob.
   protected static final short MAX_KEYBLOB_SIZE = 1024;
+  // The maximum size of the Auth data which is used while encrypting/decrypting the KeyBlob.
   private static final short MAX_AUTH_DATA_SIZE = (short) 512;
   // The minimum bits in length for AES-GCM tag.
   private static final short MIN_GCM_TAG_LENGTH_BITS = (short) 96;
@@ -186,20 +216,28 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     0x72, 0x6f, 0x69, 0x64, 0x20, 0x4B, 0x65, 0x79, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x20, 0x4B, 0x65,
     0x79
   };
+  // Constant for Dec 31, 9999 in milliseconds in hex.
   private static final byte[] dec319999Ms = {
     (byte) 0, (byte) 0, (byte) 0xE6, (byte) 0x77, (byte) 0xD2, (byte) 0x1F, (byte) 0xD8, (byte) 0x18
   };
+  // Dec 31, 9999 represented in Generalized time format YYYYMMDDhhmmssZ.
+  // "99991231235959Z" in hex. Refer RFC 5280 section 4.1.2.5.2
   private static final byte[] dec319999 = {
     0x39, 0x39, 0x39, 0x39, 0x31, 0x32, 0x33, 0x31, 0x32, 0x33, 0x35, 0x39, 0x35, 0x39, 0x5a,
   };
+  // Jan 01, 1970 represented in UTC time format YYMMDDhhmmssZ.
+  // "700101000000Z" in hex. Refer RFC 5280 section 4.1.2.5.1
   private static final byte[] jan01970 = {
     0x37, 0x30, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x5a,
   };
+  // The KeyMint name "JavacardKeymintDevice" returned from getHwInfo.
   private static final byte[] JavacardKeymintDevice = {
     0x4a, 0x61, 0x76, 0x61, 0x63, 0x61, 0x72, 0x64, 0x4b, 0x65, 0x79, 0x6d, 0x69, 0x6e, 0x74, 0x44,
     0x65, 0x76, 0x69, 0x63, 0x65,
   };
-  private static final byte[] Google = {0x47, 0x6F, 0x6F, 0x67, 0x6C, 0x65};
+  // The KeyMint author name "Google" returned from getHwInfo.
+  public static final byte[] Google = {0x47, 0x6F, 0x6F, 0x67, 0x6C, 0x65};
+  // Attestation ID tags to be included in attestation record.
   private static final short[] attTags = {
     KMType.ATTESTATION_ID_BRAND,
     KMType.ATTESTATION_ID_DEVICE,
@@ -210,8 +248,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     KMType.ATTESTATION_ID_PRODUCT,
     KMType.ATTESTATION_ID_SERIAL
   };
-  private static final byte OEM_LOCK = 1;
-  private static final byte OEM_UNLOCK = 0;
+  // Below are the constants of instructions in APDU command header.
   // Top 32 commands are reserved for provisioning.
   private static final byte KEYMINT_CMD_APDU_START = 0x20;
   // RKP
@@ -261,20 +298,40 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   // will never be used by the base line code in future.
   private static final byte INS_KM_VENDOR_START_CMD = (byte) 0xCD;
   private static final byte INS_KM_VENDOR_END_CMD = (byte) 0xFF;
-  // ComputeHMAC constants
+  // Index in apduFlagsStatus[] to check if instruction command is case 4 type in the Apdu
+  protected static final byte APDU_CASE4_COMMAND_STATUS_INDEX = 0;
+  // Index in apduFlagsStatus[] to check if Apdu setIncomingAndReceive function is called
+  protected static final byte APDU_INCOMING_AND_RECEIVE_STATUS_INDEX = 1;
+  // The maximum buffer size of combined seed and nonce.
   private static final byte HMAC_SHARED_PARAM_MAX_SIZE = 64;
   // Instance of RemotelyProvisionedComponentDevice, used to redirect the rkp commands.
-  protected static RemotelyProvisionedComponentDevice rkp;
+  protected static KMRemotelyProvisionedComponentDevice rkp;
+  // Instance of Cbor encoder.
   protected static KMEncoder encoder;
+  // Instance of Cbor decoder.
   protected static KMDecoder decoder;
+  // Instance of KMRepository class for memory management.
   protected static KMRepository repository;
+  // Instance of KMSEProvider for doing crypto operations.
   protected static KMSEProvider seProvider;
+  // Holds the instance of KMOperationStates. A maximum of 4 instances of KMOperatioState is
+  // allowed.
   protected static KMOperationState[] opTable;
+  // Instance of KMKeymintDataStore which helps to store and retrieve the data.
   protected static KMKeymintDataStore kmDataStore;
 
+  // Short array used to store the temporary results.
   protected static short[] tmpVariables;
+  // Short array used to hold the dictionary items.
   protected static short[] data;
+  // Buffer to store the transportKey which is used in the import wrapped key. Import wrapped
+  // key is divided into two stages 1. BEGIN_IMPORT_WRAPPED_KEY 2. FINISH_IMPORT_WRAPPED_KEY.
+  // The transportKey is retrieved and stored in this buffer at stage 1) and is later used in
+  // stage 2).
   protected static byte[] wrappingKey;
+  // Transient byte array used to store the flags if APDU command type is of case 4 and if
+  // APDU setIncomingAndReceive() function is called or not.
+  protected static byte[] apduStatusFlags;
 
   /** Registers this applet. */
   protected KMKeymasterApplet(KMSEProvider seImpl) {
@@ -290,6 +347,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     wrappingKey =
         JCSystem.makeTransientByteArray((short) (WRAPPING_KEY_SIZE + 1), JCSystem.CLEAR_ON_RESET);
     resetWrappingKey();
+    apduStatusFlags = JCSystem.makeTransientByteArray((short) 2, JCSystem.CLEAR_ON_RESET);
     opTable = new KMOperationState[MAX_OPERATIONS_COUNT];
     short index = 0;
     while (index < MAX_OPERATIONS_COUNT) {
@@ -303,7 +361,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     // initialize default values
     initHmacNonceAndSeed();
     rkp =
-        new RemotelyProvisionedComponentDevice(
+        new KMRemotelyProvisionedComponentDevice(
             encoder, decoder, repository, seProvider, kmDataStore);
   }
 
@@ -318,6 +376,16 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     if (((short) (bufferLength + bufferStartOffset)) > ((short) repository.getHeap().length)) {
       ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
     }
+
+    /* In T=0 protocol, On a case 4 command, setIncomingAndReceive() must
+     * be invoked prior to calling setOutgoing(). Otherwise, erroneous
+     * behavior may result
+     * */
+    if (apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] == 1
+        && apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] == 0
+        && APDU.getProtocol() == APDU.PROTOCOL_T0) {
+      apdu.setIncomingAndReceive();
+    }
     // Send data
     apdu.setOutgoing();
     apdu.setOutgoingLength(bufferLength);
@@ -329,6 +397,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     byte[] srcBuffer = apdu.getBuffer();
     short recvLen = apdu.setIncomingAndReceive();
     short srcOffset = apdu.getOffsetCdata();
+    apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] = 1;
     // TODO add logic to handle the extended length buffer. In this case the memory can be reused
     //  from extended buffer.
     short bufferLength = apdu.getIncomingLength();
@@ -997,7 +1066,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
               KMCose.COSE_KEY_TYPE_EC2,
               KMType.INVALID_VALUE,
               alg,
-              KMType.INVALID_VALUE,
               KMCose.COSE_ECCURVE_256)) {
         KMException.throwIt(KMError.STATUS_FAILED);
       }
@@ -1069,7 +1137,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     if (!testMode && kmDataStore.isProvisionLocked()) {
       KMException.throwIt(KMError.STATUS_FAILED);
     }
-    KMDeviceUniqueKeyPair deviceUniqueKey = kmDataStore.getRkpDeviceUniqueKeyPair(testMode);
+    KMKey deviceUniqueKey = kmDataStore.getRkpDeviceUniqueKeyPair(testMode);
     short temp = deviceUniqueKey.getPublicKey(scratchPad, (short) 0);
     short coseKey =
         KMCose.constructCoseKey(
@@ -1077,7 +1145,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
             KMInteger.uint_8(KMCose.COSE_KEY_TYPE_EC2),
             KMType.INVALID_VALUE,
             KMNInteger.uint_8(KMCose.COSE_ALG_ES256),
-            KMInteger.uint_8(KMCose.COSE_KEY_OP_VERIFY),
             KMInteger.uint_8(KMCose.COSE_ECCURVE_256),
             scratchPad,
             (short) 0,
@@ -1139,7 +1206,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
             coseSignStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
     // do sign
     short len =
-        seProvider.ecSign256(deviceUniqueKey, scratchPad, (short) 0, temp, scratchPad, temp);
+        seProvider.signWithDeviceUniqueKey(
+            deviceUniqueKey, scratchPad, (short) 0, temp, scratchPad, temp);
     len =
         KMAsn1Parser.instance()
             .decodeEcdsa256Signature(KMByteBlob.instance(scratchPad, temp, len), scratchPad, temp);
@@ -1271,6 +1339,28 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         return KMError.CRYPTO_UNINITIALIZED_KEY;
       default:
         return KMError.UNKNOWN_ERROR;
+    }
+  }
+
+  public void updateApduStatusFlags(short apduIns) {
+    switch (apduIns) {
+      case INS_EXPORT_KEY_CMD:
+      case INS_DELETE_ALL_KEYS_CMD:
+      case INS_DESTROY_ATT_IDS_CMD:
+      case INS_VERIFY_AUTHORIZATION_CMD:
+      case INS_GET_HMAC_SHARING_PARAM_CMD:
+      case INS_GET_HW_INFO_CMD:
+      case INS_EARLY_BOOT_ENDED_CMD:
+      case INS_GET_ROT_CHALLENGE_CMD:
+      case INS_GET_ROT_DATA_CMD:
+      case INS_GET_RKP_HARDWARE_INFO:
+      case INS_FINISH_SEND_DATA_CMD:
+      case INS_GET_RESPONSE_CMD:
+        apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] = 0;
+        break;
+      default:
+        // By default the instruction is set to case 4 command instruction.
+        break;
     }
   }
 
@@ -1717,6 +1807,15 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     Util.setShort(buffer, bufferStartOffset, (short) 0x8400);
 
     short bufferLength = (short) (KMRepository.HEAP_SIZE - bufferStartOffset);
+    /* In T=0 protocol, On a case 4 command, setIncomingAndReceive() must
+     * be invoked prior to calling setOutgoing(). Otherwise, erroneous
+     * behavior may result
+     * */
+    if (apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] == 1
+        && apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] == 0
+        && APDU.getProtocol() == APDU.PROTOCOL_T0) {
+      apdu.setIncomingAndReceive();
+    }
     // Send data
     apdu.setOutgoing();
     apdu.setOutgoingLength(bufferLength);
@@ -1817,6 +1916,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
 
   private void processDeleteAllKeysCmd(APDU apdu) {
     // No arguments
+    // This function is triggered when a factory reset event occurs.
+    // Regenerate the master key to render all keys unusable.
+    kmDataStore.regenerateMasterKey();
     // Send ok
     sendResponse(apdu, KMError.OK);
   }
@@ -4656,7 +4758,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     // is an error.
     // 4) If the generated/imported keys are RSA or EC then validity period must be specified.
     // Device Unique Attestation is not supported.
-    // Device unique attestation not supported
     short heapStart = repository.getHeapIndex();
     KMTag.assertAbsence(
         data[KEY_PARAMETERS],
@@ -4684,6 +4785,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         cert = makeSelfSignedCert(data[SECRET], data[PUB_KEY], mode, scratchPad);
         break;
       case KMType.FAKE_CERT:
+        // Generate certificate with no signature.
         cert = makeSelfSignedCert(KMType.INVALID_VALUE, data[PUB_KEY], mode, scratchPad);
         break;
       default:
@@ -4810,6 +4912,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
   }
 
+  // Decode the KeyBlob from CBOR structures to the sub types of KMType.
   private void decodeKeyBlob(short version, short keyBlob) {
     // Decode KeyBlob and read the KeyBlob params based on the version.
     short parsedBlob =
@@ -4841,6 +4944,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     readKeyBlobParams(version, parsedBlob);
   }
 
+  // Decrypts the secret key in the KeyBlob. The secret can be a Symmetric or Asymmetric key.
   private void processDecryptSecret(short version, short appId, short appData, byte[] scratchPad) {
     data[TEE_PARAMETERS] = KMKeyCharacteristics.cast(data[KEY_CHARACTERISTICS]).getTeeEnforced();
     data[SB_PARAMETERS] =
