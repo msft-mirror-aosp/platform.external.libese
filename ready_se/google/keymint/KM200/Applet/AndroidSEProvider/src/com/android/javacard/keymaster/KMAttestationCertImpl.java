@@ -18,19 +18,20 @@ package com.android.javacard.keymaster;
 import com.android.javacard.seprovider.KMAESKey;
 import com.android.javacard.seprovider.KMAttestationCert;
 import com.android.javacard.seprovider.KMException;
-import com.android.javacard.seprovider.KMMasterKey;
+import com.android.javacard.seprovider.KMKey;
 import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
-// The class encodes strongbox generated amd signed attestation certificate. This only encodes
-// required fields of the certificates. It is not meant to be generic X509 cert encoder.
-// Whatever fields that are fixed are added as byte arrays. The Extensions are encoded as per
-// the values.
-// The certificate is assembled with leafs first and then the sequences.
-
+/**
+ * The class encodes strongbox generated and signed attestation certificates. It only encodes the
+ * required fields of the certificates. This class is not meant to be a generic X509 cert encoder.
+ * Any fields that are fixed are added as byte arrays. Extensions are encoded as per the values. The
+ * certificate is assembled with leafs first and then the sequences.
+ */
 public class KMAttestationCertImpl implements KMAttestationCert {
 
+  // The maximum size of the either software or hardware parameters.
   private static final byte MAX_PARAMS = 30;
   // DER encoded object identifiers required by the cert.
   // rsaEncryption - 1.2.840.113549.1.1.1
@@ -51,7 +52,9 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   private static final byte[] androidExtn = {
     0x06, 0x0A, 0X2B, 0X06, 0X01, 0X04, 0X01, (byte) 0XD6, 0X79, 0X02, 0X01, 0X11
   };
+  // The length of the RSA signature.
   private static final short RSA_SIG_LEN = 256;
+  // The maximum length of the ECDSA signature.
   private static final byte ECDSA_MAX_SIG_LEN = 72;
   // Signature algorithm identifier - ecdsaWithSha256 - 1.2.840.10045.4.3.2
   // SEQUENCE of alg OBJ ID and parameters = NULL.
@@ -61,8 +64,21 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   // Signature algorithm identifier - sha256WithRSAEncryption - 1.2.840.113549.1.1.11
   // SEQUENCE of alg OBJ ID and parameters = NULL.
   private static final byte[] X509RsaSignAlgIdentifier = {
-    0x30, 0x0D, 0x06, 0x09, 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01, 0x01,
-    0x0B, 0x05, 0x00
+    0x30,
+    0x0D,
+    0x06,
+    0x09,
+    0x2A,
+    (byte) 0x86,
+    0x48,
+    (byte) 0x86,
+    (byte) 0xF7,
+    0x0D,
+    0x01,
+    0x01,
+    0x0B,
+    0x05,
+    0x00
   };
 
   // Below are the allowed softwareEnforced Authorization tags inside the attestation certificate's
@@ -110,16 +126,17 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     KMType.ALGORITHM,
     KMType.PURPOSE
   };
-
+  // Below are the constants for the key usage extension.
   private static final byte keyUsageSign = (byte) 0x80; // 0 bit
   private static final byte keyUsageKeyEncipher = (byte) 0x20; // 2nd- bit
   private static final byte keyUsageDataEncipher = (byte) 0x10; // 3rd- bit
   private static final byte keyUsageKeyAgreement = (byte) 0x08; // 4th- bit
   private static final byte keyUsageCertSign = (byte) 0x04; // 5th- bit
-
+  // KeyMint HAL Version constant.
   private static final short KEYMINT_VERSION = 200;
+  // Attestation version constant.
   private static final short ATTESTATION_VERSION = 200;
-  private static final byte[] pubExponent = {0x01, 0x00, 0x01};
+  // The X.509 version as per rfc5280#section-4.1.2.1
   private static final byte X509_VERSION = (byte) 0x02;
 
   // Buffer indexes in transient array
@@ -165,7 +182,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   private static byte[] stack;
   private static short[] swParams;
   private static short[] hwParams;
-
+  // The maximum size of the serial number.
   private static final byte SERIAL_NUM_MAX_LEN = 20;
 
   private KMAttestationCertImpl() {}
@@ -423,8 +440,8 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   // as positive integer}
   private static void pushRsaSubjectKeyInfo() {
     short last = indexes[STACK_PTR];
-    pushBytes(pubExponent, (short) 0, (short) pubExponent.length);
-    pushIntegerHeader((short) pubExponent.length);
+    pushBytes(KMKeymasterApplet.F4, (short) 0, (short) KMKeymasterApplet.F4.length);
+    pushIntegerHeader((short) KMKeymasterApplet.F4.length);
     pushBytes(
         KMByteBlob.cast(indexes[PUB_KEY]).getBuffer(),
         KMByteBlob.cast(indexes[PUB_KEY]).getStartOff(),
@@ -954,7 +971,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
       short appIdOff,
       short attestAppIdLen,
       byte resetSinceIdRotation,
-      KMMasterKey masterKey) {
+      KMKey masterKey) {
     // Concatenate T||C||R
     // temporal count T
     short temp =
