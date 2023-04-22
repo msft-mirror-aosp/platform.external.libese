@@ -81,8 +81,8 @@ std::shared_ptr<ITransport> getTransportInstance() {
 int main() {
     ABinderProcess_setThreadPoolMaxThreadCount(0);
     // Javacard Secure Element
-    std::shared_ptr<JavacardSecureElement> card = std::make_shared<JavacardSecureElement>(
-        getTransportInstance(), getOsVersion(), getOsPatchlevel(), getVendorPatchlevel());
+    std::shared_ptr<JavacardSecureElement> card =
+        std::make_shared<JavacardSecureElement>(getTransportInstance());
     // Add Keymint Service
     addService<JavacardKeyMintDevice>(card);
     // Add Shared Secret Service
