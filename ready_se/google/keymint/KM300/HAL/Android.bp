@@ -15,14 +15,14 @@
 
 package {
     default_applicable_licenses: [
-        "external_libese_ready_se_google_keymint_KM200_HAL_license",
+        "external_libese_ready_se_google_keymint_KM300_HAL_license",
     ],
 }
 
 // Added automatically by a large-scale-change
 // See: http://go/android-license-faq
 license {
-    name: "external_libese_ready_se_google_keymint_KM200_HAL_license",
+    name: "external_libese_ready_se_google_keymint_KM300_HAL_license",
     visibility: [":__subpackages__"],
     license_kinds: [
         "SPDX-license-identifier-Apache-2.0",
@@ -33,7 +33,7 @@ license {
 }
 
 cc_library {
-    name: "libjc_keymint",
+    name: "libjc_keymint3",
     defaults: [
         "keymaster_defaults",
         "keymint_use_latest_hal_aidl_ndk_shared",
@@ -70,36 +70,13 @@ cc_library {
     vendor_available: true,
 }
 
-cc_library {
-    name: "libjc_keymint_transport",
-    vendor_available: true,
-    defaults: [
-        "keymint_use_latest_hal_aidl_ndk_shared",
-    ],
-    srcs: [
-        "SocketTransport.cpp",
-        "OmapiTransport.cpp",
-    ],
-    export_include_dirs: [
-        ".",
-    ],
-    shared_libs: [
-        "libbinder",
-        "libbase",
-        "liblog",
-        "libbinder_ndk",
-        "android.se.omapi-V1-ndk",
-        "libhardware",
-    ],
-}
-
 cc_binary {
-    name: "android.hardware.security.keymint-service.strongbox",
+    name: "android.hardware.security.keymint3-service.strongbox",
     relative_install_path: "hw",
-    init_rc: ["android.hardware.security.keymint-service.strongbox.rc"],
+    init_rc: ["android.hardware.security.keymint3-service.strongbox.rc"],
     vintf_fragments: [
-        "android.hardware.security.keymint-service.strongbox.xml",
-        "android.hardware.security.sharedsecret-service.strongbox.xml",
+        "android.hardware.security.keymint3-service.strongbox.xml",
+        "android.hardware.security.sharedsecret3-service.strongbox.xml",
     ],
     vendor: true,
     cflags: [
@@ -118,7 +95,7 @@ cc_binary {
         "libcppbor_external",
         "libcrypto",
         "libkeymaster_portable",
-        "libjc_keymint",
+        "libjc_keymint3",
         "libjc_keymint_transport",
         "liblog",
         "libutils",
@@ -128,13 +105,13 @@ cc_binary {
         "service.cpp",
     ],
     required: [
-        "android.hardware.hardware_keystore.jc-strongbox-keymint.xml",
+        "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
     ],
 }
 
 prebuilt_etc {
-    name: "android.hardware.hardware_keystore.jc-strongbox-keymint.xml",
+    name: "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
     sub_dir: "permissions",
     vendor: true,
-    src: "android.hardware.hardware_keystore.jc-strongbox-keymint.xml",
+    src: "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
 }
