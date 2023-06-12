@@ -1153,8 +1153,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
             scratchPad,
             (short) 0,
             temp,
-            KMType.INVALID_VALUE,
-            false);
+            KMType.INVALID_VALUE);
     temp =
         KMKeymasterApplet.encodeToApduBuffer(
             coseKey, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
