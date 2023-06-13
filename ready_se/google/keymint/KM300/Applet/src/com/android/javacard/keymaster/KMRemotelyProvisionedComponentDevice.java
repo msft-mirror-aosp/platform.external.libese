@@ -300,19 +300,13 @@ public class KMRemotelyProvisionedComponentDevice {
    * blob. It then generates a COSEMac message which includes the ECDSA public key.
    */
   public void processGenerateRkpKey(APDU apdu) {
-    short arr = KMArray.instance((short) 1);
-    KMArray.cast(arr).add((short) 0, KMSimpleValue.exp());
-    arr = KMKeymasterApplet.receiveIncoming(apdu, arr);
     // Re-purpose the apdu buffer as scratch pad.
     byte[] scratchPad = apdu.getBuffer();
-    // test mode flag.
-    boolean testMode =
-        (KMSimpleValue.TRUE == KMSimpleValue.cast(KMArray.cast(arr).get((short) 0)).getValue());
     KMKeymasterApplet.generateRkpKey(scratchPad, getEcAttestKeyParameters());
     short pubKey = KMKeymasterApplet.getPubKey();
-    short coseMac0 = constructCoseMacForRkpKey(testMode, scratchPad, pubKey);
+    short coseMac0 = constructCoseMacForRkpKey(scratchPad, pubKey);
     // Encode the COSE_MAC0 object
-    arr = KMArray.instance((short) 3);
+    short arr = KMArray.instance((short) 3);
     KMArray.cast(arr).add((short) 0, KMInteger.uint_16(KMError.OK));
     KMArray.cast(arr).add((short) 1, coseMac0);
     KMArray.cast(arr).add((short) 2, KMKeymasterApplet.getPivateKey());
@@ -878,8 +872,7 @@ public class KMRemotelyProvisionedComponentDevice {
         KMKeymasterApplet.encodeToApduBuffer(
             macStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
 
-    short hmacLen =
-        rkpHmacSign(testMode, scratchPad, (short) 0, encodedLen, scratchPad, encodedLen);
+    short hmacLen = rkpHmacSign(scratchPad, (short) 0, encodedLen, scratchPad, encodedLen);
 
     if (hmacLen
         != KMByteBlob.cast(KMArray.cast(coseMacPtr).get(KMCose.COSE_MAC0_TAG_OFFSET)).length()) {
@@ -1212,7 +1205,7 @@ public class KMRemotelyProvisionedComponentDevice {
     return lengthToSend;
   }
 
-  private short constructCoseMacForRkpKey(boolean testMode, byte[] scratchPad, short pubKey) {
+  private short constructCoseMacForRkpKey(byte[] scratchPad, short pubKey) {
     // prepare cosekey
     short coseKey =
         KMCose.constructCoseKey(
@@ -1224,8 +1217,7 @@ public class KMRemotelyProvisionedComponentDevice {
             KMByteBlob.cast(pubKey).getBuffer(),
             KMByteBlob.cast(pubKey).getStartOff(),
             KMByteBlob.cast(pubKey).length(),
-            KMType.INVALID_VALUE,
-            testMode);
+            KMType.INVALID_VALUE);
     // Encode the cose key and make it as payload.
     short len =
         KMKeymasterApplet.encodeToApduBuffer(
@@ -1252,7 +1244,7 @@ public class KMRemotelyProvisionedComponentDevice {
         KMKeymasterApplet.encodeToApduBuffer(
             macStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
     // HMAC Sign.
-    short hmacLen = rkpHmacSign(testMode, scratchPad, (short) 0, len, scratchPad, len);
+    short hmacLen = rkpHmacSign(scratchPad, (short) 0, len, scratchPad, len);
     // Create COSE_MAC0 object
     short coseMac0 =
         KMCose.constructCoseMac0(
@@ -1362,35 +1354,10 @@ public class KMRemotelyProvisionedComponentDevice {
   }
 
   private short rkpHmacSign(
-      boolean testMode,
-      byte[] data,
-      short dataStart,
-      short dataLength,
-      byte[] signature,
-      short signatureStart) {
-    short result;
-    if (testMode) {
-      short macKey = KMByteBlob.instance(EPHEMERAL_MAC_KEY_SIZE);
-      Util.arrayFillNonAtomic(
-          KMByteBlob.cast(macKey).getBuffer(),
-          KMByteBlob.cast(macKey).getStartOff(),
-          EPHEMERAL_MAC_KEY_SIZE,
-          (byte) 0);
-      result =
-          seProvider.hmacSign(
-              KMByteBlob.cast(macKey).getBuffer(),
-              KMByteBlob.cast(macKey).getStartOff(),
-              EPHEMERAL_MAC_KEY_SIZE,
-              data,
-              dataStart,
-              dataLength,
-              signature,
-              signatureStart);
-    } else {
-      result =
-          seProvider.hmacSign(
-              storeDataInst.getRkpMacKey(), data, dataStart, dataLength, signature, signatureStart);
-    }
+      byte[] data, short dataStart, short dataLength, byte[] signature, short signatureStart) {
+    short result =
+        seProvider.hmacSign(
+            storeDataInst.getRkpMacKey(), data, dataStart, dataLength, signature, signatureStart);
     return result;
   }
 }
