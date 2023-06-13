@@ -342,9 +342,9 @@ public class KMRemotelyProvisionedComponentDevice {
 
     short versionLength = encoder.getEncodedLength(versionPtr);
     short certTypeLen = encoder.getEncodedLength(certTypePtr);
-    short challengeLen = (short) KMByteBlob.cast(challengeByteBlob).length();
-    if (challengeLen < 16 || challengeLen > 64) {
-      KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
+    short challengeLen = KMByteBlob.cast(challengeByteBlob).length();
+    if (challengeLen > 64) {
+      KMException.throwIt(KMError.STATUS_FAILED);
     }
     short challengeHeaderLen = encoder.getEncodedBytesLength(challengeLen);
     short deviceInfoLen = encoder.getEncodedLength(deviceInfo);
