@@ -388,6 +388,21 @@ public abstract class KMType {
     return Util.getShort(heap, (short) (ptr + TLV_HEADER_SIZE));
   }
 
+  protected static short copyToUint32(
+      byte[] src, short srcOff, short srcLen, byte[] dest, short destOff) {
+    if (srcLen > KMInteger.UINT_32) {
+      ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+    }
+    Util.arrayFillNonAtomic(dest, destOff, KMInteger.UINT_32, (byte) 0);
+    Util.arrayCopyNonAtomic(
+        src, srcOff, dest, (short) (destOff + KMInteger.UINT_32 - srcLen), srcLen);
+    return KMInteger.UINT_32;
+  }
+
+  protected byte[] getBuffer() {
+    return heap;
+  }
+
   protected static short instance(byte type, short length) {
     if (length < 0) {
       ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
