@@ -156,22 +156,11 @@ class CoreSlots implements Slots {
                 return Consts.READ_BACK_OFF;
             }
 
-            // Check the key matches in constant time and copy out the value if it does
-            byte result = (Util.arrayCompare(
-                    keyBuffer, keyOffset, mKey, (short) 0, Consts.SLOT_KEY_BYTES) == 0) ?
-                    Consts.READ_SUCCESS : Consts.READ_WRONG_KEY;
-
-            // Keep track of the number of failures
-            if (result == Consts.READ_WRONG_KEY) {
-                if (mFailureCount != 0x7fff) {
-                    mFailureCount += 1;
-                }
-            } else {
-                // This read was successful so reset the failures
-                if (mFailureCount != 0) { // attempt to maintain constant time
-                    mFailureCount = 0;
-                }
+            // Assume this read will fail
+            if (mFailureCount != 0x7fff) {
+                mFailureCount += 1;
             }
+            byte result = Consts.READ_WRONG_KEY;
 
             // Start the timer on a failure
             if (throttle(sRemainingBackoff, (short) 0, mFailureCount)) {
@@ -179,6 +168,18 @@ class CoreSlots implements Slots {
                         sRemainingBackoff, (short) 0, DSTimer.DST_POWEROFFMODE_FALLBACK);
                 result = Consts.READ_BACK_OFF;
             } else {
+                mBackoffTimer.stopTimer();
+            }
+
+            // Check the key matches in constant time and copy out the value if it does
+            result = (Util.arrayCompare(
+                    keyBuffer, keyOffset, mKey, (short) 0, Consts.SLOT_KEY_BYTES) == 0) ?
+                    Consts.READ_SUCCESS : result;
+
+            // Keep track of the number of failures
+            if (result == Consts.READ_SUCCESS) {
+                // This read was successful so reset the failures
+                mFailureCount = 0;
                 mBackoffTimer.stopTimer();
             }
 
