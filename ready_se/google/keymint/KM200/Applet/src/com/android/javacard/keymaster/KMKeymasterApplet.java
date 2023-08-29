@@ -2982,12 +2982,12 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
       // validate operation handle.
       short ptr = KMVerificationToken.cast(data[VERIFICATION_TOKEN]).getChallenge();
       if (KMInteger.compare(ptr, op.getHandle()) != 0) {
-        KMException.throwIt(KMError.VERIFICATION_FAILED);
+        KMException.throwIt(KMError.KEY_USER_NOT_AUTHENTICATED);
       }
       tmpVariables[0] = op.getAuthTime();
       tmpVariables[2] = KMVerificationToken.cast(data[VERIFICATION_TOKEN]).getTimestamp();
       if (tmpVariables[2] == KMType.INVALID_VALUE) {
-        KMException.throwIt(KMError.VERIFICATION_FAILED);
+        KMException.throwIt(KMError.KEY_USER_NOT_AUTHENTICATED);
       }
       if (KMInteger.compare(tmpVariables[0], tmpVariables[2]) < 0) {
         KMException.throwIt(KMError.KEY_USER_NOT_AUTHENTICATED);
@@ -3132,11 +3132,11 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     short ptr = KMVerificationToken.cast(verToken).getMac();
     // If mac length is zero then token is empty.
     if (KMByteBlob.cast(ptr).length() == 0) {
-      KMException.throwIt(KMError.INVALID_MAC_LENGTH);
+      KMException.throwIt(KMError.KEY_USER_NOT_AUTHENTICATED);
     }
     if (!verifyVerificationTokenMacInBigEndian(verToken, scratchPad)) {
       // Throw Exception if none of the combination works.
-      KMException.throwIt(KMError.VERIFICATION_FAILED);
+      KMException.throwIt(KMError.KEY_USER_NOT_AUTHENTICATED);
     }
   }
 
