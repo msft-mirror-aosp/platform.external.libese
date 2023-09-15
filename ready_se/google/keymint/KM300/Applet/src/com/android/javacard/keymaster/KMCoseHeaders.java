@@ -143,10 +143,6 @@ public class KMCoseHeaders extends KMCoseMap {
     return getValueType(KMCose.COSE_LABEL_COSE_KEY);
   }
 
-  public short getIV() {
-    return getValueType(KMCose.COSE_LABEL_IV);
-  }
-
   public short getAlgorithm() {
     return getValueType(KMCose.COSE_LABEL_ALGORITHM);
   }

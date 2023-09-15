@@ -71,10 +71,6 @@ public class KMCosePairCoseKeyTag extends KMCosePairTagType {
     return false;
   }
 
-  public short getValueType() {
-    return COSE_KEY_TYPE;
-  }
-
   @Override
   public short getKeyPtr() {
     return Util.getShort(

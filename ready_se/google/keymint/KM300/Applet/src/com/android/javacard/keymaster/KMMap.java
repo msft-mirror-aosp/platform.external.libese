@@ -191,10 +191,6 @@ public class KMMap extends KMType {
     KMCoseMap.canonicalize(instanceTable[KM_MAP_OFFSET], length());
   }
 
-  public short containedType() {
-    return Util.getShort(heap, (short) (instanceTable[KM_MAP_OFFSET] + TLV_HEADER_SIZE));
-  }
-
   public short getStartOff() {
     return (short) (instanceTable[KM_MAP_OFFSET] + TLV_HEADER_SIZE + MAP_HEADER_SIZE);
   }
