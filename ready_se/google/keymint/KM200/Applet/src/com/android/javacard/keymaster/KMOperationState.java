@@ -31,7 +31,7 @@ public class KMOperationState {
 
   // sizes
   public static final byte OPERATION_HANDLE_SIZE = 8;
-  public static final byte DATA_SIZE = 11;
+  public static final byte DATA_SIZE = 12;
   public static final byte AUTH_TIME_SIZE = 8;
   // Secure user ids 5 * 8 = 40 bytes ( Considering Maximum 5 SECURE USER IDs)
   // First two bytes are reserved to store number of secure ids. So total 42 bytes.
@@ -47,7 +47,7 @@ public class KMOperationState {
   private static final byte MAC_LENGTH = 7;
   private static final byte MGF_DIGEST = 8;
   private static final byte AUTH_TYPE = 9;
-  private static final byte MIN_MAC_LENGTH = 10;
+  private static final byte MIN_MAC_LENGTH = 11;
   private static final byte OPERATION = 0;
   private static final byte HMAC_SIGNER_OPERATION = 1;
   // Flag masks
@@ -187,12 +187,16 @@ public class KMOperationState {
     }
   }
 
-  public short getAuthType() {
-    return data[AUTH_TYPE];
+  public short getAuthType(byte[] buf, short offset) {
+    Util.arrayFillNonAtomic(buf, offset, (short) 4, (byte) 0);
+    offset = Util.setShort(buf, offset, data[AUTH_TYPE]);
+    Util.setShort(buf, offset, data[AUTH_TYPE + 1]);
+    return (short) 4;
   }
 
-  public void setAuthType(byte authType) {
-    data[AUTH_TYPE] = authType;
+  public void setAuthType(byte[] buf, short offset, short len) {
+    data[AUTH_TYPE] = Util.getShort(buf, offset);
+    data[(short) (AUTH_TYPE + 1)] = Util.getShort(buf, (short) (offset + 2));
   }
 
   public short getUserSecureId() {
