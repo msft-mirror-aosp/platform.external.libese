@@ -73,7 +73,7 @@ public class KMEnum extends KMType {
     if (!validateEnum(enumType, NO_VALUE)) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
     }
-    short ptr = KMType.instance(ENUM_TYPE, (short) 2);
+    short ptr = KMType.instance(ENUM_TYPE, (short) 2 /* TAG_KEY */);
     Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE), enumType);
     return ptr;
   }
@@ -82,9 +82,25 @@ public class KMEnum extends KMType {
     if (!validateEnum(enumType, val)) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
     }
-    short ptr = KMType.instance(ENUM_TYPE, (short) 3);
+    short ptr = KMType.instance(ENUM_TYPE, (short) (2 /* TAG_KEY */ + 1 /* Byte value */));
     Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE), enumType);
     heap[(short) (ptr + TLV_HEADER_SIZE + 2)] = val;
+    return ptr;
+  }
+
+  public static short instance(short key, byte[] num, short srcOff, short length) {
+    if (length == 1) {
+      return instance(key, num[srcOff]);
+    }
+    if (!validateEnum(key, num, srcOff, length)) {
+      ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+    }
+    short ptr = KMType.instance(ENUM_TYPE, (short) (2 /* TAG_KEY */ + KMInteger.UINT_32));
+    Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE), key);
+    short destValOff = (short) (ptr + TLV_HEADER_SIZE + 2);
+    Util.arrayFillNonAtomic(heap, destValOff, KMInteger.UINT_32, (byte) 0);
+    Util.arrayCopyNonAtomic(
+        num, srcOff, heap, (short) (destValOff + KMInteger.UINT_32 - length), length);
     return ptr;
   }
 
@@ -145,11 +161,19 @@ public class KMEnum extends KMType {
   }
 
   public short length() {
-    return Util.getShort(heap, (short) (KMType.instanceTable[KM_ENUM_OFFSET] + 1));
+    return (short) (Util.getShort(heap, (short) (KMType.instanceTable[KM_ENUM_OFFSET] + 1)) - 2);
   }
 
   public byte getVal() {
     return heap[(short) (KMType.instanceTable[KM_ENUM_OFFSET] + TLV_HEADER_SIZE + 2)];
+  }
+
+  public short value(byte[] dest, short destOff) {
+    return copyToUint32(heap, getStartOffset(), length(), dest, destOff);
+  }
+
+  public short getStartOffset() {
+    return (short) (KMType.instanceTable[KM_ENUM_OFFSET] + TLV_HEADER_SIZE + 2);
   }
 
   public void setVal(byte val) {
@@ -162,5 +186,21 @@ public class KMEnum extends KMType {
 
   public void setEnumType(short type) {
     Util.setShort(heap, (short) (KMType.instanceTable[KM_ENUM_OFFSET] + TLV_HEADER_SIZE), type);
+  }
+
+  public static boolean validateEnum(short key, byte[] buf, short off, short len) {
+    if (len != KMInteger.UINT_32) {
+      return false;
+    }
+    switch (key) {
+      case KMType.USER_AUTH_TYPE:
+        // HardwareAuthenticatorType::ANY - 0xFFFFFFFF
+        short highShort = Util.getShort(buf, off);
+        short lowShort = Util.getShort(buf, (short) (off + 2));
+        return ((short) 0xFFFF == (short) (highShort & lowShort));
+
+      default:
+        return false;
+    }
   }
 }
