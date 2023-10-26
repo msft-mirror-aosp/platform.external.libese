@@ -242,6 +242,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     KMType.ATTESTATION_ID_BRAND,
     KMType.ATTESTATION_ID_DEVICE,
     KMType.ATTESTATION_ID_IMEI,
+    KMType.ATTESTATION_ID_SECOND_IMEI,
     KMType.ATTESTATION_ID_MANUFACTURER,
     KMType.ATTESTATION_ID_MEID,
     KMType.ATTESTATION_ID_MODEL,
