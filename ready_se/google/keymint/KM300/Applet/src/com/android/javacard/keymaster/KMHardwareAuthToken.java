@@ -119,21 +119,9 @@ public class KMHardwareAuthToken extends KMType {
     return KMArray.cast(arrPtr).get(USER_ID);
   }
 
-  public void setUserId(short vals) {
-    KMInteger.cast(vals);
-    short arrPtr = getVals();
-    KMArray.cast(arrPtr).add(USER_ID, vals);
-  }
-
   public short getAuthenticatorId() {
     short arrPtr = getVals();
     return KMArray.cast(arrPtr).get(AUTHENTICATOR_ID);
-  }
-
-  public void setAuthenticatorId(short vals) {
-    KMInteger.cast(vals);
-    short arrPtr = getVals();
-    KMArray.cast(arrPtr).add(AUTHENTICATOR_ID, vals);
   }
 
   public short getHwAuthenticatorType() {
@@ -141,31 +129,13 @@ public class KMHardwareAuthToken extends KMType {
     return KMArray.cast(arrPtr).get(HW_AUTHENTICATOR_TYPE);
   }
 
-  public void setHwAuthenticatorType(short vals) {
-    KMEnum.cast(vals);
-    short arrPtr = getVals();
-    KMArray.cast(arrPtr).add(HW_AUTHENTICATOR_TYPE, vals);
-  }
-
   public short getTimestamp() {
     short arrPtr = getVals();
     return KMArray.cast(arrPtr).get(TIMESTAMP);
   }
 
-  public void setTimestamp(short vals) {
-    KMInteger.cast(vals);
-    short arrPtr = getVals();
-    KMArray.cast(arrPtr).add(TIMESTAMP, vals);
-  }
-
   public short getMac() {
     short arrPtr = getVals();
     return KMArray.cast(arrPtr).get(MAC);
-  }
-
-  public void setMac(short vals) {
-    KMByteBlob.cast(vals);
-    short arrPtr = getVals();
-    KMArray.cast(arrPtr).add(MAC, vals);
   }
 }
