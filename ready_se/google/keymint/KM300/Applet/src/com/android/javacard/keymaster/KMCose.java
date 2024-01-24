@@ -27,19 +27,11 @@ public class KMCose {
 
   // COSE SIGN1
   public static final byte COSE_SIGN1_ENTRY_COUNT = 4;
-  public static final byte COSE_SIGN1_PROTECTED_PARAMS_OFFSET = 0;
-  public static final byte COSE_SIGN1_PAYLOAD_OFFSET = 2;
-  public static final byte COSE_SIGN1_SIGNATURE_OFFSET = 3;
   // COSE MAC0
   public static final byte COSE_MAC0_ENTRY_COUNT = 4;
   public static final byte COSE_MAC0_PROTECTED_PARAMS_OFFSET = 0;
   public static final byte COSE_MAC0_PAYLOAD_OFFSET = 2;
   public static final byte COSE_MAC0_TAG_OFFSET = 3;
-  // COSE ENCRYPT
-  public static final byte COSE_ENCRYPT_ENTRY_COUNT = 4;
-  public static final byte COSE_ENCRYPT_STRUCTURE_ENTRY_COUNT = 3;
-  public static final byte COSE_ENCRYPT_RECIPIENT_ENTRY_COUNT = 3;
-
   // COSE Labels
   public static final byte COSE_LABEL_ALGORITHM = 1;
   public static final byte COSE_LABEL_KEYID = 4;
@@ -61,10 +53,6 @@ public class KMCose {
 
   // COSE Key Operations
   public static final byte COSE_KEY_OP_SIGN = 1;
-  public static final byte COSE_KEY_OP_VERIFY = 2;
-  public static final byte COSE_KEY_OP_ENCRYPT = 3;
-  public static final byte COSE_KEY_OP_DECRYPT = 4;
-
   // AES GCM
   public static final short AES_GCM_KEY_SIZE_BITS = 256;
   // Cose key parameters.
