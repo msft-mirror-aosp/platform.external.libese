@@ -73,10 +73,6 @@ public class KMCosePairTextStringTag extends KMCosePairTagType {
     return false;
   }
 
-  public short getValueType() {
-    return TEXT_STRING_TYPE;
-  }
-
   @Override
   public short getKeyPtr() {
     return Util.getShort(
