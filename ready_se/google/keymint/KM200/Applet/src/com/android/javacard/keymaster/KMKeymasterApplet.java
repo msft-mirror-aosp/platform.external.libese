@@ -2331,31 +2331,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     sendResponse(apdu, KMError.OK);
   }
 
-  private short aesGCMEncrypt(
-      short aesSecret, short input, short nonce, short authData, short authTag, byte[] scratchPad) {
-    Util.arrayFillNonAtomic(scratchPad, (short) 0, KMByteBlob.cast(input).length(), (byte) 0);
-    short len =
-        seProvider.aesGCMEncrypt(
-            KMByteBlob.cast(aesSecret).getBuffer(),
-            KMByteBlob.cast(aesSecret).getStartOff(),
-            KMByteBlob.cast(aesSecret).length(),
-            KMByteBlob.cast(input).getBuffer(),
-            KMByteBlob.cast(input).getStartOff(),
-            KMByteBlob.cast(input).length(),
-            scratchPad,
-            (short) 0,
-            KMByteBlob.cast(nonce).getBuffer(),
-            KMByteBlob.cast(nonce).getStartOff(),
-            KMByteBlob.cast(nonce).length(),
-            KMByteBlob.cast(authData).getBuffer(),
-            KMByteBlob.cast(authData).getStartOff(),
-            KMByteBlob.cast(authData).length(),
-            KMByteBlob.cast(authTag).getBuffer(),
-            KMByteBlob.cast(authTag).getStartOff(),
-            KMByteBlob.cast(authTag).length());
-    return KMByteBlob.instance(scratchPad, (short) 0, len);
-  }
-
   private short aesGCMDecrypt(
       short aesSecret, short input, short nonce, short authData, short authTag, byte[] scratchPad) {
     Util.arrayFillNonAtomic(scratchPad, (short) 0, KMByteBlob.cast(input).length(), (byte) 0);
@@ -3417,14 +3392,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     KMArray.cast(resp).add((short) 3, KMInteger.uint_8(op.getBufferingMode()));
     KMArray.cast(resp).add((short) 4, KMInteger.uint_16(macLen));
     sendOutgoing(apdu, resp);
-  }
-
-  private void authorizeAlgorithm(KMOperationState op) {
-    short alg = KMEnumTag.getValue(KMType.ALGORITHM, data[HW_PARAMETERS]);
-    if (alg == KMType.INVALID_VALUE) {
-      KMException.throwIt(KMError.UNSUPPORTED_ALGORITHM);
-    }
-    op.setAlgorithm((byte) alg);
   }
 
   private void authorizePurpose(KMOperationState op) {
@@ -4606,16 +4573,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     initHmacNonceAndSeed();
     // Clear all auth tags.
     kmDataStore.removeAllAuthTags();
-  }
-
-  protected void initSystemBootParams(
-      short osVersion, short osPatchLevel, short vendorPatchLevel, short bootPatchLevel) {
-    osVersion = KMInteger.uint_16(osVersion);
-    osPatchLevel = KMInteger.uint_16(osPatchLevel);
-    vendorPatchLevel = KMInteger.uint_16((short) vendorPatchLevel);
-    setOsVersion(osVersion);
-    setOsPatchLevel(osPatchLevel);
-    setVendorPatchLevel(vendorPatchLevel);
   }
 
   protected void setOsVersion(short version) {
