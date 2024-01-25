@@ -125,12 +125,4 @@ public class KMCoseCertPayload extends KMCoseMap {
         Util.getShort(KMCose.SUBJECT_PUBLIC_KEY, (short) 0) // MSB (Significant)
         );
   }
-
-  public short getSubject() {
-    return getValueType(KMCose.SUBJECT, KMType.INVALID_VALUE);
-  }
-
-  public short getIssuer() {
-    return getValueType(KMCose.ISSUER, KMType.INVALID_VALUE);
-  }
 }
