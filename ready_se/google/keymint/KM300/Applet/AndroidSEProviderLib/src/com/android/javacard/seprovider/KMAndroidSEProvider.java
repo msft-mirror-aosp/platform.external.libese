@@ -1239,7 +1239,6 @@ public class KMAndroidSEProvider implements KMSEProvider {
               MessageDigest.ALG_SHA_256, Signature.SIG_CIPHER_RSA, Cipher.PAD_PKCS1);
 
       RSAPrivateKey key = (RSAPrivateKey) rsaKeyPair.getPrivate();
-      ;
       key.setExponent(secret, secretStart, secretLength);
       key.setModulus(modBuf, modStart, modLength);
 

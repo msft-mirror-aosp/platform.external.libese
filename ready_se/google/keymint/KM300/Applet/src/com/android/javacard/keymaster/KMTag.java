@@ -55,29 +55,6 @@ public class KMTag extends KMType {
     return tag != KMType.INVALID_VALUE;
   }
 
-  public static boolean isEqual(short params, short tagType, short tagKey, short value) {
-    switch (tagType) {
-      case KMType.ENUM_TAG:
-        return KMEnumTag.getValue(tagKey, params) == value;
-      case KMType.UINT_TAG:
-      case KMType.DATE_TAG:
-      case KMType.ULONG_TAG:
-        return KMIntegerTag.isEqual(params, tagType, tagKey, value);
-      case KMType.ENUM_ARRAY_TAG:
-        return KMEnumArrayTag.contains(tagKey, value, params);
-      case KMType.UINT_ARRAY_TAG:
-      case KMType.ULONG_ARRAY_TAG:
-        return KMIntegerArrayTag.contains(tagKey, value, params);
-    }
-    return false;
-  }
-
-  public static void assertTrue(boolean condition, short error) {
-    if (!condition) {
-      KMException.throwIt(error);
-    }
-  }
-
   public static boolean isValidPublicExponent(short params) {
     short pubExp = KMKeyParameters.findTag(KMType.ULONG_TAG, KMType.RSA_PUBLIC_EXPONENT, params);
     if (pubExp == KMType.INVALID_VALUE) {

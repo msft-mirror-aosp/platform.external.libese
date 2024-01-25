@@ -374,10 +374,6 @@ public class KMKeymintDataStore implements KMUpgradable {
     writeDataEntry(HMAC_NONCE, nonce, offset, len);
   }
 
-  public void clearHmacNonce() {
-    clearDataEntry(HMAC_NONCE);
-  }
-
   public boolean persistAuthTag(short authTag) {
 
     if (KMByteBlob.cast(authTag).length() != AUTH_TAG_LENGTH) {
