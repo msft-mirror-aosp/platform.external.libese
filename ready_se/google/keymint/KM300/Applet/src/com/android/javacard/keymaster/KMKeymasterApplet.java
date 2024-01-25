@@ -2218,8 +2218,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   }
 
   private short aesGCMDecrypt(
-      short aesSecret, short input, short nonce, short authData, short authTag, byte[] scratchPad) {
-    Util.arrayFillNonAtomic(scratchPad, (short) 0, KMByteBlob.cast(input).length(), (byte) 0);
+      short aesSecret, short input, short nonce, short authData, short authTag) {
+    short outPtr = KMByteBlob.instance(KMByteBlob.cast(input).length());
     if (!seProvider.aesGCMDecrypt(
         KMByteBlob.cast(aesSecret).getBuffer(),
         KMByteBlob.cast(aesSecret).getStartOff(),
@@ -2227,8 +2227,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         KMByteBlob.cast(input).getBuffer(),
         KMByteBlob.cast(input).getStartOff(),
         KMByteBlob.cast(input).length(),
-        scratchPad,
-        (short) 0,
+        KMByteBlob.cast(outPtr).getBuffer(),
+        KMByteBlob.cast(outPtr).getStartOff(),
         KMByteBlob.cast(nonce).getBuffer(),
         KMByteBlob.cast(nonce).getStartOff(),
         KMByteBlob.cast(nonce).length(),
@@ -2240,7 +2240,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         KMByteBlob.cast(authTag).length())) {
       KMException.throwIt(KMError.VERIFICATION_FAILED);
     }
-    return KMByteBlob.instance(scratchPad, (short) 0, KMByteBlob.cast(input).length());
+    return outPtr;
   }
 
   private short finishImportWrappedKeyCmd(APDU apdu) {
@@ -2280,8 +2280,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
             data[INPUT_DATA],
             data[NONCE],
             data[AUTH_DATA],
-            data[AUTH_TAG],
-            scratchPad);
+            data[AUTH_TAG]);
     resetWrappingKey();
     // Step 5 - Import decrypted key
     data[ORIGIN] = KMType.SECURELY_IMPORTED;
@@ -2307,20 +2306,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
     cert.subjectName(subject);
     // Validity period must be specified
-    short notBefore =
-        KMKeyParameters.findTag(
-            KMType.DATE_TAG, KMType.CERTIFICATE_NOT_BEFORE, data[KEY_PARAMETERS]);
-    if (notBefore == KMType.INVALID_VALUE) {
-      KMException.throwIt(KMError.MISSING_NOT_BEFORE);
-    }
-    notBefore = KMIntegerTag.cast(notBefore).getValue();
-    short notAfter =
-        KMKeyParameters.findTag(
-            KMType.DATE_TAG, KMType.CERTIFICATE_NOT_AFTER, data[KEY_PARAMETERS]);
-    if (notAfter == KMType.INVALID_VALUE) {
-      KMException.throwIt(KMError.MISSING_NOT_AFTER);
-    }
-    notAfter = KMIntegerTag.cast(notAfter).getValue();
+    short notBefore = getCertificateValidityDate(KMType.CERTIFICATE_NOT_BEFORE, scratchPad);
+    short notAfter = getCertificateValidityDate(KMType.CERTIFICATE_NOT_AFTER, scratchPad);
     // VTS sends notBefore == Epoch.
     Util.arrayFillNonAtomic(scratchPad, (short) 0, (short) 8, (byte) 0);
     short epoch = KMInteger.instance(scratchPad, (short) 0, (short) 8);
@@ -2350,6 +2337,30 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
     cert.serialNumber(serialNum);
     return cert;
+  }
+
+  private short getCertificateValidityDate(short tag, byte[] scratchpad) {
+    short error = KMError.UNKNOWN_ERROR;
+    switch(tag) {
+    case KMType.CERTIFICATE_NOT_AFTER:
+      error = KMError.MISSING_NOT_AFTER;
+      Util.arrayCopyNonAtomic(dec319999Ms, (short) 0, scratchpad, (short) 0, (short) dec319999Ms.length);
+      break;
+    case KMType.CERTIFICATE_NOT_BEFORE:
+      error = KMError.MISSING_NOT_BEFORE;
+      Util.arrayFillNonAtomic(scratchpad, (short) 0, (short) 8, (byte) 0);
+      break;
+      default:
+        KMException.throwIt(KMError.INVALID_TAG);
+    }
+    short datePtr = KMKeyParameters.findTag(KMType.DATE_TAG, tag, data[KEY_PARAMETERS]);
+    if (datePtr == KMType.INVALID_VALUE ) {
+      if (data[ORIGIN] == KMType.SECURELY_IMPORTED) {
+        return KMInteger.instance(scratchpad, (short) 0, (short) 8);
+      }
+      KMException.throwIt(error);
+    }
+    return KMIntegerTag.cast(datePtr).getValue();
   }
 
   private KMAttestationCert makeAttestationCert(
