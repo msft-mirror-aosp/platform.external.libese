@@ -74,10 +74,6 @@ public class KMCosePairIntegerTag extends KMCosePairTagType {
     return proto(ptr);
   }
 
-  public short getValueType() {
-    return INTEGER_TYPE;
-  }
-
   @Override
   public short getKeyPtr() {
     return Util.getShort(

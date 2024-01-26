@@ -334,13 +334,6 @@ public class KMEncoder {
     }
   }
 
-  public void encodeArrayOnlyLength(short arrLength, byte[] buffer, short offset, short length) {
-    bufferRef[0] = buffer;
-    scratchBuf[START_OFFSET] = offset;
-    scratchBuf[LEN_OFFSET] = (short) (offset + length + 1);
-    writeMajorTypeWithLength(ARRAY_TYPE, length);
-  }
-
   private void encodeMap(short obj) {
     writeMajorTypeWithLength(MAP_TYPE, KMMap.cast(obj).length());
     short len = KMMap.cast(obj).length();

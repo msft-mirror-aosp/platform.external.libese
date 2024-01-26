@@ -330,7 +330,6 @@ public class KMAsn1Parser {
     if (data[dataInfo[DATA_CURSOR_OFFSET]] != ASN1_A0_TAG) {
       return;
     }
-    ;
     short len = header(ASN1_A0_TAG);
     if (len != EC_CURVE.length) {
       KMException.throwIt(KMError.UNKNOWN_ERROR);

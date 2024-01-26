@@ -172,10 +172,6 @@ public class KMInteger extends KMType {
     Util.arrayCopyNonAtomic(heap, getStartOff(), dest, destOff, length);
   }
 
-  public void setValue(byte[] src, short srcOff) {
-    Util.arrayCopyNonAtomic(src, srcOff, heap, getStartOff(), length());
-  }
-
   public short value(byte[] dest, short destOff) {
     Util.arrayCopyNonAtomic(heap, getStartOff(), dest, destOff, length());
     return length();
