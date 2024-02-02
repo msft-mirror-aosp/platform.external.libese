@@ -1020,124 +1020,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     return len;
   }
 
-  public static short validateCertChain(
-      boolean validateEekRoot,
-      byte expCertAlg,
-      byte expLeafCertAlg,
-      short certChainArr,
-      byte[] scratchPad,
-      Object[] authorizedEekRoots) {
-    short len = KMArray.cast(certChainArr).length();
-    short coseHeadersExp = KMCoseHeaders.exp();
-    // prepare exp for coseky
-    short coseKeyExp = KMCoseKey.exp();
-    short ptr1;
-    short ptr2;
-    short signStructure;
-    short encodedLen;
-    short prevCoseKey = 0;
-    short keySize;
-    short alg = expCertAlg;
-    short index;
-    for (index = 0; index < len; index++) {
-      ptr1 = KMArray.cast(certChainArr).get(index);
-
-      // validate protected Headers
-      ptr2 = KMArray.cast(ptr1).get(KMCose.COSE_SIGN1_PROTECTED_PARAMS_OFFSET);
-      ptr2 =
-          decoder.decode(
-              coseHeadersExp,
-              KMByteBlob.cast(ptr2).getBuffer(),
-              KMByteBlob.cast(ptr2).getStartOff(),
-              KMByteBlob.cast(ptr2).length());
-      if (!KMCoseHeaders.cast(ptr2).isDataValid(rkp.rkpTmpVariables, alg, KMType.INVALID_VALUE)) {
-        KMException.throwIt(KMError.STATUS_FAILED);
-      }
-
-      // parse and get the public key from payload.
-      ptr2 = KMArray.cast(ptr1).get(KMCose.COSE_SIGN1_PAYLOAD_OFFSET);
-      ptr2 =
-          decoder.decode(
-              coseKeyExp,
-              KMByteBlob.cast(ptr2).getBuffer(),
-              KMByteBlob.cast(ptr2).getStartOff(),
-              KMByteBlob.cast(ptr2).length());
-      if ((index == (short) (len - 1)) && len > 1) {
-        alg = expLeafCertAlg;
-      }
-      if (!KMCoseKey.cast(ptr2)
-          .isDataValid(
-              rkp.rkpTmpVariables,
-              KMCose.COSE_KEY_TYPE_EC2,
-              KMType.INVALID_VALUE,
-              alg,
-              KMCose.COSE_ECCURVE_256)) {
-        KMException.throwIt(KMError.STATUS_FAILED);
-      }
-      if (prevCoseKey == 0) {
-        prevCoseKey = ptr2;
-      }
-      // Get the public key.
-      keySize = KMCoseKey.cast(prevCoseKey).getEcdsa256PublicKey(scratchPad, (short) 0);
-      if (keySize != 65) {
-        KMException.throwIt(KMError.STATUS_FAILED);
-      }
-      if (validateEekRoot && (index == 0)) {
-        boolean found = false;
-        // In prod mode the first pubkey should match a well-known Google public key.
-        for (short i = 0; i < (short) authorizedEekRoots.length; i++) {
-          if (0
-              == Util.arrayCompare(
-                  scratchPad,
-                  (short) 0,
-                  (byte[]) authorizedEekRoots[i],
-                  (short) 0,
-                  (short) ((byte[]) authorizedEekRoots[i]).length)) {
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          KMException.throwIt(KMError.STATUS_FAILED);
-        }
-      }
-      // Validate signature.
-      signStructure =
-          KMCose.constructCoseSignStructure(
-              KMArray.cast(ptr1).get(KMCose.COSE_SIGN1_PROTECTED_PARAMS_OFFSET),
-              KMByteBlob.instance((short) 0),
-              KMArray.cast(ptr1).get(KMCose.COSE_SIGN1_PAYLOAD_OFFSET));
-      encodedLen =
-          KMKeymasterApplet.encodeToApduBuffer(
-              signStructure, scratchPad, keySize, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
-
-      short signatureLen =
-          rkp.encodeES256CoseSignSignature(
-              KMByteBlob.cast(KMArray.cast(ptr1).get(KMCose.COSE_SIGN1_SIGNATURE_OFFSET))
-                  .getBuffer(),
-              KMByteBlob.cast(KMArray.cast(ptr1).get(KMCose.COSE_SIGN1_SIGNATURE_OFFSET))
-                  .getStartOff(),
-              KMByteBlob.length(KMArray.cast(ptr1).get(KMCose.COSE_SIGN1_SIGNATURE_OFFSET)),
-              scratchPad,
-              (short) (keySize + encodedLen));
-
-      if (!seProvider.ecVerify256(
-          scratchPad,
-          (short) 0,
-          keySize,
-          scratchPad,
-          keySize,
-          encodedLen,
-          scratchPad,
-          (short) (keySize + encodedLen),
-          signatureLen)) {
-        KMException.throwIt(KMError.STATUS_FAILED);
-      }
-      prevCoseKey = ptr2;
-    }
-    return prevCoseKey;
-  }
-
   public static short generateDiceCertChain(byte[] scratchPad) {
     if (kmDataStore.isProvisionLocked()) {
       KMException.throwIt(KMError.STATUS_FAILED);
@@ -2335,34 +2217,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     sendResponse(apdu, KMError.OK);
   }
 
-  private short aesGCMEncrypt(
-      short aesSecret, short input, short nonce, short authData, short authTag, byte[] scratchPad) {
-    Util.arrayFillNonAtomic(scratchPad, (short) 0, KMByteBlob.cast(input).length(), (byte) 0);
-    short len =
-        seProvider.aesGCMEncrypt(
-            KMByteBlob.cast(aesSecret).getBuffer(),
-            KMByteBlob.cast(aesSecret).getStartOff(),
-            KMByteBlob.cast(aesSecret).length(),
-            KMByteBlob.cast(input).getBuffer(),
-            KMByteBlob.cast(input).getStartOff(),
-            KMByteBlob.cast(input).length(),
-            scratchPad,
-            (short) 0,
-            KMByteBlob.cast(nonce).getBuffer(),
-            KMByteBlob.cast(nonce).getStartOff(),
-            KMByteBlob.cast(nonce).length(),
-            KMByteBlob.cast(authData).getBuffer(),
-            KMByteBlob.cast(authData).getStartOff(),
-            KMByteBlob.cast(authData).length(),
-            KMByteBlob.cast(authTag).getBuffer(),
-            KMByteBlob.cast(authTag).getStartOff(),
-            KMByteBlob.cast(authTag).length());
-    return KMByteBlob.instance(scratchPad, (short) 0, len);
-  }
-
   private short aesGCMDecrypt(
-      short aesSecret, short input, short nonce, short authData, short authTag, byte[] scratchPad) {
-    Util.arrayFillNonAtomic(scratchPad, (short) 0, KMByteBlob.cast(input).length(), (byte) 0);
+      short aesSecret, short input, short nonce, short authData, short authTag) {
+    short outPtr = KMByteBlob.instance(KMByteBlob.cast(input).length());
     if (!seProvider.aesGCMDecrypt(
         KMByteBlob.cast(aesSecret).getBuffer(),
         KMByteBlob.cast(aesSecret).getStartOff(),
@@ -2370,8 +2227,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         KMByteBlob.cast(input).getBuffer(),
         KMByteBlob.cast(input).getStartOff(),
         KMByteBlob.cast(input).length(),
-        scratchPad,
-        (short) 0,
+        KMByteBlob.cast(outPtr).getBuffer(),
+        KMByteBlob.cast(outPtr).getStartOff(),
         KMByteBlob.cast(nonce).getBuffer(),
         KMByteBlob.cast(nonce).getStartOff(),
         KMByteBlob.cast(nonce).length(),
@@ -2383,7 +2240,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         KMByteBlob.cast(authTag).length())) {
       KMException.throwIt(KMError.VERIFICATION_FAILED);
     }
-    return KMByteBlob.instance(scratchPad, (short) 0, KMByteBlob.cast(input).length());
+    return outPtr;
   }
 
   private short finishImportWrappedKeyCmd(APDU apdu) {
@@ -2423,8 +2280,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
             data[INPUT_DATA],
             data[NONCE],
             data[AUTH_DATA],
-            data[AUTH_TAG],
-            scratchPad);
+            data[AUTH_TAG]);
     resetWrappingKey();
     // Step 5 - Import decrypted key
     data[ORIGIN] = KMType.SECURELY_IMPORTED;
@@ -2450,20 +2306,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
     cert.subjectName(subject);
     // Validity period must be specified
-    short notBefore =
-        KMKeyParameters.findTag(
-            KMType.DATE_TAG, KMType.CERTIFICATE_NOT_BEFORE, data[KEY_PARAMETERS]);
-    if (notBefore == KMType.INVALID_VALUE) {
-      KMException.throwIt(KMError.MISSING_NOT_BEFORE);
-    }
-    notBefore = KMIntegerTag.cast(notBefore).getValue();
-    short notAfter =
-        KMKeyParameters.findTag(
-            KMType.DATE_TAG, KMType.CERTIFICATE_NOT_AFTER, data[KEY_PARAMETERS]);
-    if (notAfter == KMType.INVALID_VALUE) {
-      KMException.throwIt(KMError.MISSING_NOT_AFTER);
-    }
-    notAfter = KMIntegerTag.cast(notAfter).getValue();
+    short notBefore = getCertificateValidityDate(KMType.CERTIFICATE_NOT_BEFORE, scratchPad);
+    short notAfter = getCertificateValidityDate(KMType.CERTIFICATE_NOT_AFTER, scratchPad);
     // VTS sends notBefore == Epoch.
     Util.arrayFillNonAtomic(scratchPad, (short) 0, (short) 8, (byte) 0);
     short epoch = KMInteger.instance(scratchPad, (short) 0, (short) 8);
@@ -2493,6 +2337,30 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
     cert.serialNumber(serialNum);
     return cert;
+  }
+
+  private short getCertificateValidityDate(short tag, byte[] scratchpad) {
+    short error = KMError.UNKNOWN_ERROR;
+    switch(tag) {
+    case KMType.CERTIFICATE_NOT_AFTER:
+      error = KMError.MISSING_NOT_AFTER;
+      Util.arrayCopyNonAtomic(dec319999Ms, (short) 0, scratchpad, (short) 0, (short) dec319999Ms.length);
+      break;
+    case KMType.CERTIFICATE_NOT_BEFORE:
+      error = KMError.MISSING_NOT_BEFORE;
+      Util.arrayFillNonAtomic(scratchpad, (short) 0, (short) 8, (byte) 0);
+      break;
+      default:
+        KMException.throwIt(KMError.INVALID_TAG);
+    }
+    short datePtr = KMKeyParameters.findTag(KMType.DATE_TAG, tag, data[KEY_PARAMETERS]);
+    if (datePtr == KMType.INVALID_VALUE ) {
+      if (data[ORIGIN] == KMType.SECURELY_IMPORTED) {
+        return KMInteger.instance(scratchpad, (short) 0, (short) 8);
+      }
+      KMException.throwIt(error);
+    }
+    return KMIntegerTag.cast(datePtr).getValue();
   }
 
   private KMAttestationCert makeAttestationCert(
@@ -4621,16 +4489,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     kmDataStore.removeAllAuthTags();
   }
 
-  protected void initSystemBootParams(
-      short osVersion, short osPatchLevel, short vendorPatchLevel, short bootPatchLevel) {
-    osVersion = KMInteger.uint_16(osVersion);
-    osPatchLevel = KMInteger.uint_16(osPatchLevel);
-    vendorPatchLevel = KMInteger.uint_16((short) vendorPatchLevel);
-    setOsVersion(osVersion);
-    setOsPatchLevel(osPatchLevel);
-    setVendorPatchLevel(vendorPatchLevel);
-  }
-
   protected void setOsVersion(short version) {
     kmDataStore.setOsVersion(
         KMInteger.cast(version).getBuffer(),
@@ -4984,7 +4842,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
       default:
         KMException.throwIt(KMError.INVALID_KEY_BLOB);
     }
-    ;
     // KeyBlob size should not be less than the minimum KeyBlob size.
     if (KMArray.cast(parsedBlob).length() < minArraySize) {
       KMException.throwIt(KMError.INVALID_KEY_BLOB);
@@ -5046,7 +4903,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
       default:
         KMException.throwIt(KMError.INVALID_KEY_BLOB);
     }
-    ;
     KMArray.cast(data[KEY_BLOB]).add(keyBlobSecretOff, data[SECRET]);
   }
 

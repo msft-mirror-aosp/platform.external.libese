@@ -119,10 +119,6 @@ public class KMCosePairByteBlobTag extends KMCosePairTagType {
     return false;
   }
 
-  public short getValueType() {
-    return BYTE_BLOB_TYPE;
-  }
-
   @Override
   public short getKeyPtr() {
     return Util.getShort(
