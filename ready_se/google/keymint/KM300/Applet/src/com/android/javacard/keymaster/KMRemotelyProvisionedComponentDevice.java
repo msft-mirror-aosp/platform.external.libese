@@ -300,19 +300,13 @@ public class KMRemotelyProvisionedComponentDevice {
    * blob. It then generates a COSEMac message which includes the ECDSA public key.
    */
   public void processGenerateRkpKey(APDU apdu) {
-    short arr = KMArray.instance((short) 1);
-    KMArray.cast(arr).add((short) 0, KMSimpleValue.exp());
-    arr = KMKeymasterApplet.receiveIncoming(apdu, arr);
     // Re-purpose the apdu buffer as scratch pad.
     byte[] scratchPad = apdu.getBuffer();
-    // test mode flag.
-    boolean testMode =
-        (KMSimpleValue.TRUE == KMSimpleValue.cast(KMArray.cast(arr).get((short) 0)).getValue());
     KMKeymasterApplet.generateRkpKey(scratchPad, getEcAttestKeyParameters());
     short pubKey = KMKeymasterApplet.getPubKey();
-    short coseMac0 = constructCoseMacForRkpKey(testMode, scratchPad, pubKey);
+    short coseMac0 = constructCoseMacForRkpKey(scratchPad, pubKey);
     // Encode the COSE_MAC0 object
-    arr = KMArray.instance((short) 3);
+    short arr = KMArray.instance((short) 3);
     KMArray.cast(arr).add((short) 0, KMInteger.uint_16(KMError.OK));
     KMArray.cast(arr).add((short) 1, coseMac0);
     KMArray.cast(arr).add((short) 2, KMKeymasterApplet.getPivateKey());
@@ -342,9 +336,9 @@ public class KMRemotelyProvisionedComponentDevice {
 
     short versionLength = encoder.getEncodedLength(versionPtr);
     short certTypeLen = encoder.getEncodedLength(certTypePtr);
-    short challengeLen = (short) KMByteBlob.cast(challengeByteBlob).length();
-    if (challengeLen < 16 || challengeLen > 64) {
-      KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
+    short challengeLen = KMByteBlob.cast(challengeByteBlob).length();
+    if (challengeLen > 64) {
+      KMException.throwIt(KMError.STATUS_FAILED);
     }
     short challengeHeaderLen = encoder.getEncodedBytesLength(challengeLen);
     short deviceInfoLen = encoder.getEncodedLength(deviceInfo);
@@ -878,8 +872,7 @@ public class KMRemotelyProvisionedComponentDevice {
         KMKeymasterApplet.encodeToApduBuffer(
             macStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
 
-    short hmacLen =
-        rkpHmacSign(testMode, scratchPad, (short) 0, encodedLen, scratchPad, encodedLen);
+    short hmacLen = rkpHmacSign(scratchPad, (short) 0, encodedLen, scratchPad, encodedLen);
 
     if (hmacLen
         != KMByteBlob.cast(KMArray.cast(coseMacPtr).get(KMCose.COSE_MAC0_TAG_OFFSET)).length()) {
@@ -1212,7 +1205,7 @@ public class KMRemotelyProvisionedComponentDevice {
     return lengthToSend;
   }
 
-  private short constructCoseMacForRkpKey(boolean testMode, byte[] scratchPad, short pubKey) {
+  private short constructCoseMacForRkpKey(byte[] scratchPad, short pubKey) {
     // prepare cosekey
     short coseKey =
         KMCose.constructCoseKey(
@@ -1224,8 +1217,7 @@ public class KMRemotelyProvisionedComponentDevice {
             KMByteBlob.cast(pubKey).getBuffer(),
             KMByteBlob.cast(pubKey).getStartOff(),
             KMByteBlob.cast(pubKey).length(),
-            KMType.INVALID_VALUE,
-            testMode);
+            KMType.INVALID_VALUE);
     // Encode the cose key and make it as payload.
     short len =
         KMKeymasterApplet.encodeToApduBuffer(
@@ -1252,7 +1244,7 @@ public class KMRemotelyProvisionedComponentDevice {
         KMKeymasterApplet.encodeToApduBuffer(
             macStructure, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
     // HMAC Sign.
-    short hmacLen = rkpHmacSign(testMode, scratchPad, (short) 0, len, scratchPad, len);
+    short hmacLen = rkpHmacSign(scratchPad, (short) 0, len, scratchPad, len);
     // Create COSE_MAC0 object
     short coseMac0 =
         KMCose.constructCoseMac0(
@@ -1293,104 +1285,11 @@ public class KMRemotelyProvisionedComponentDevice {
     return KMKeyParameters.instance(arrPtr);
   }
 
-  private boolean isSignedByte(byte b) {
-    return ((b & 0x0080) != 0);
-  }
-
-  private short writeIntegerHeader(short valueLen, byte[] data, short offset) {
-    // write length
-    data[offset] = (byte) valueLen;
-    // write INTEGER tag
-    offset--;
-    data[offset] = 0x02;
-    return offset;
-  }
-
-  private short writeSequenceHeader(short valueLen, byte[] data, short offset) {
-    // write length
-    data[offset] = (byte) valueLen;
-    // write INTEGER tag
-    offset--;
-    data[offset] = 0x30;
-    return offset;
-  }
-
-  private short writeSignatureData(
-      byte[] input, short inputOff, short inputlen, byte[] output, short offset) {
-    Util.arrayCopyNonAtomic(input, inputOff, output, offset, inputlen);
-    if (isSignedByte(input[inputOff])) {
-      offset--;
-      output[offset] = (byte) 0;
-    }
-    return offset;
-  }
-
-  public short encodeES256CoseSignSignature(
-      byte[] input, short offset, short len, byte[] scratchPad, short scratchPadOff) {
-    // SEQ [ INTEGER(r), INTEGER(s)]
-    // write from bottom to the top
-    if (len != 64) {
-      KMException.throwIt(KMError.INVALID_DATA);
-    }
-    short maxTotalLen = 72;
-    short end = (short) (scratchPadOff + maxTotalLen);
-    // write s.
-    short start = (short) (end - 32);
-    start = writeSignatureData(input, (short) (offset + 32), (short) 32, scratchPad, start);
-    // write length and header
-    short length = (short) (end - start);
-    start--;
-    start = writeIntegerHeader(length, scratchPad, start);
-    // write r
-    short rEnd = start;
-    start = (short) (start - 32);
-    start = writeSignatureData(input, offset, (short) 32, scratchPad, start);
-    // write length and header
-    length = (short) (rEnd - start);
-    start--;
-    start = writeIntegerHeader(length, scratchPad, start);
-    // write length and sequence header
-    length = (short) (end - start);
-    start--;
-    start = writeSequenceHeader(length, scratchPad, start);
-    length = (short) (end - start);
-    if (start > scratchPadOff) {
-      // re adjust the buffer
-      Util.arrayCopyNonAtomic(scratchPad, start, scratchPad, scratchPadOff, length);
-    }
-    return length;
-  }
-
   private short rkpHmacSign(
-      boolean testMode,
-      byte[] data,
-      short dataStart,
-      short dataLength,
-      byte[] signature,
-      short signatureStart) {
-    short result;
-    if (testMode) {
-      short macKey = KMByteBlob.instance(EPHEMERAL_MAC_KEY_SIZE);
-      Util.arrayFillNonAtomic(
-          KMByteBlob.cast(macKey).getBuffer(),
-          KMByteBlob.cast(macKey).getStartOff(),
-          EPHEMERAL_MAC_KEY_SIZE,
-          (byte) 0);
-      result =
-          seProvider.hmacSign(
-              KMByteBlob.cast(macKey).getBuffer(),
-              KMByteBlob.cast(macKey).getStartOff(),
-              EPHEMERAL_MAC_KEY_SIZE,
-              data,
-              dataStart,
-              dataLength,
-              signature,
-              signatureStart);
-    } else {
-      result =
-          seProvider.hmacSign(
-              storeDataInst.getRkpMacKey(), data, dataStart, dataLength, signature, signatureStart);
-    }
+      byte[] data, short dataStart, short dataLength, byte[] signature, short signatureStart) {
+    short result =
+        seProvider.hmacSign(
+            storeDataInst.getRkpMacKey(), data, dataStart, dataLength, signature, signatureStart);
     return result;
   }
 }

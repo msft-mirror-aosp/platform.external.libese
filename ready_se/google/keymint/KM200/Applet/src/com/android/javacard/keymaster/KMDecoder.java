@@ -483,31 +483,51 @@ public class KMDecoder {
     return arrPtr;
   }
 
-  private short decodeEnumTag(short exp) {
-    readTagKey(KMEnumTag.cast(exp).getTagType());
+  private short createInstanceEnumType(short instanceType, byte[] buf, short offset, short len) {
+    byte type = KMType.getType(instanceType);
+    short ptr = KMType.INVALID_VALUE;
+    switch (type) {
+      case KMType.ENUM_TYPE:
+        ptr = KMEnum.instance(KMEnum.cast(instanceType).getEnumType(), buf, offset, len);
+        break;
+      case KMType.TAG_TYPE:
+        ptr = KMEnumTag.instance(scratchBuf[TAG_KEY_OFFSET], buf, offset, len);
+        break;
+      default:
+        ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+    }
+    return ptr;
+  }
+
+  private short decodeEnumAndCreateInstance(short instanceType) {
     byte[] buffer = (byte[]) bufferRef[0];
-    short startOff = scratchBuf[START_OFFSET];
-    // Enum Tag value will always be integer with max 1 byte length.
-    if ((buffer[startOff] & MAJOR_TYPE_MASK) != UINT_TYPE) {
+    short offset = scratchBuf[START_OFFSET];
+    if ((buffer[offset] & MAJOR_TYPE_MASK) != UINT_TYPE) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
     }
-    short len = (short) (buffer[startOff] & ADDITIONAL_MASK);
-    byte enumVal = 0;
-    if (len > UINT8_LENGTH) {
+    short addInfo = (short) (buffer[offset] & ADDITIONAL_MASK);
+    if (addInfo > UINT32_LENGTH) {
       ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
     }
-    if (len < UINT8_LENGTH) {
-      enumVal = (byte) (len & ADDITIONAL_MASK);
+    if (addInfo >= UINT8_LENGTH) {
       incrementStartOff((short) 1);
-    } else if (len == UINT8_LENGTH) {
-      incrementStartOff((short) 1);
-      // startOff  is incremented so update the startOff
-      // with latest value before using it.
-      startOff = scratchBuf[START_OFFSET];
-      enumVal = buffer[startOff];
-      incrementStartOff((short) 1);
+      offset = scratchBuf[START_OFFSET];
     }
-    return KMEnumTag.instance(scratchBuf[TAG_KEY_OFFSET], enumVal);
+    byte originalValue = buffer[offset];
+    if (addInfo < UINT8_LENGTH) {
+      // In this case additional info is the actual enum value.
+      buffer[offset] = (byte) addInfo;
+    }
+    short len = (short) ((addInfo > UINT8_LENGTH) ? ((addInfo == UINT32_LENGTH) ? 4 : 2) : 1);
+    short ptr = createInstanceEnumType(instanceType, buffer, offset, len);
+    buffer[offset] = originalValue;
+    incrementStartOff(len);
+    return ptr;
+  }
+
+  private short decodeEnumTag(short exp) {
+    readTagKey(KMEnumTag.cast(exp).getTagType());
+    return decodeEnumAndCreateInstance(exp);
   }
 
   private short decodeBoolTag(short exp) {
@@ -526,29 +546,7 @@ public class KMDecoder {
   }
 
   private short decodeEnum(short exp) {
-    byte[] buffer = (byte[]) bufferRef[0];
-    short startOff = scratchBuf[START_OFFSET];
-    // Enum value will always be integer with max 1 byte length.
-    if ((buffer[startOff] & MAJOR_TYPE_MASK) != UINT_TYPE) {
-      ISOException.throwIt(ISO7816.SW_DATA_INVALID);
-    }
-    short len = (short) (buffer[startOff] & ADDITIONAL_MASK);
-    byte enumVal;
-    if (len > UINT8_LENGTH) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
-    if (len < UINT8_LENGTH) {
-      enumVal = (byte) (len & ADDITIONAL_MASK);
-      incrementStartOff((short) 1);
-    } else {
-      incrementStartOff((short) 1);
-      // startOff  is incremented so update the startOff
-      // with latest value before using it.
-      startOff = scratchBuf[START_OFFSET];
-      enumVal = buffer[startOff];
-      incrementStartOff((short) 1);
-    }
-    return KMEnum.instance(KMEnum.cast(exp).getEnumType(), enumVal);
+    return decodeEnumAndCreateInstance(exp);
   }
 
   private short decodeSimpleValue(short exp) {

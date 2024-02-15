@@ -456,17 +456,4 @@ public class KMKeyParameters extends KMType {
     }
     return ret;
   }
-
-  public void deleteCustomTags() {
-    short arrPtr = getVals();
-    short index = (short) (customTags.length - 1);
-    short obj;
-    while (index >= 0) {
-      obj = findTag(customTags[(short) (index - 1)], customTags[index]);
-      if (obj != KMType.INVALID_VALUE) {
-        KMArray.cast(arrPtr).deleteLastEntry();
-      }
-      index -= 2;
-    }
-  }
 }

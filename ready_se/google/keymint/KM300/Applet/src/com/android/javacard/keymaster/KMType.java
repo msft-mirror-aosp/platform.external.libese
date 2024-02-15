@@ -227,7 +227,6 @@ public abstract class KMType {
   public static final short ORIGINATION_EXPIRE_DATETIME = 0x0191;
   public static final short USAGE_EXPIRE_DATETIME = 0x0192;
   public static final short CREATION_DATETIME = 0x02BD;
-  ;
   public static final short CERTIFICATE_NOT_BEFORE = 0x03F0;
   public static final short CERTIFICATE_NOT_AFTER = 0x03F1;
   // Integer Array Tags - ULONG_REP and UINT_REP.
@@ -303,8 +302,6 @@ public abstract class KMType {
   public static final short CERTIFICATE_SERIAL_NUM = (short) 0x03EE;
   // Subject Name
   public static final short CERTIFICATE_SUBJECT_NAME = (short) 0x03EF;
-
-  public static final short LENGTH_FROM_PDU = (short) 0xFFFF;
 
   public static final byte NO_VALUE = (byte) 0xff;
   // Support Curves for Eek Chain validation.
@@ -388,6 +385,21 @@ public abstract class KMType {
 
   public static short getValue(short ptr) {
     return Util.getShort(heap, (short) (ptr + TLV_HEADER_SIZE));
+  }
+
+  protected static short copyToUint32(
+      byte[] src, short srcOff, short srcLen, byte[] dest, short destOff) {
+    if (srcLen > KMInteger.UINT_32) {
+      ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+    }
+    Util.arrayFillNonAtomic(dest, destOff, KMInteger.UINT_32, (byte) 0);
+    Util.arrayCopyNonAtomic(
+        src, srcOff, dest, (short) (destOff + KMInteger.UINT_32 - srcLen), srcLen);
+    return KMInteger.UINT_32;
+  }
+
+  protected byte[] getBuffer() {
+    return heap;
   }
 
   protected static short instance(byte type, short length) {
