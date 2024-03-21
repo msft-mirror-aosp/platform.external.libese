@@ -22,7 +22,11 @@
 #define ESE_UINT32_MAX (UINT32_MAX)
 
 #ifndef NULL
+#ifdef __cplusplus
+#define NULL nullptr
+#else
 #define NULL ((void *)(0))
+#endif
 #endif
 
 /* Set visibility for exported functions. */
