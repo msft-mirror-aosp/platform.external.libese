@@ -56,8 +56,7 @@ static void EseClose(struct EseInterface *ese) {
   return EseOperationsWrapperData::ops_interface->EseClose(ese);
 }
 
-EseOperationsInterface *EseOperationsWrapperData::ops_interface =
-  reinterpret_cast<EseOperationsInterface *>(NULL);
+EseOperationsInterface *EseOperationsWrapperData::ops_interface = NULL;
 
 static const char *kErrors[] = {};
 const struct EseOperations EseOperationsWrapperData::ops = {
