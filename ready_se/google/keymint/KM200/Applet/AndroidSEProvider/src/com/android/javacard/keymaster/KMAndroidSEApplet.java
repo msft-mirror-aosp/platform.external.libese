@@ -27,14 +27,18 @@ import org.globalplatform.upgrade.Element;
 import org.globalplatform.upgrade.OnUpgradeListener;
 import org.globalplatform.upgrade.UpgradeManager;
 
+/**
+ * This class extends from KMKeymasterApplet which is main entry point to receive apdu commands. All
+ * the provision commands are processed here and later the data is handed over to the KMDataStore
+ * class which stores the data in the flash memory.
+ */
 public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeListener {
-  // Magic number version
+  // Magic number version stored along with provisioned data. This is used to differentiate
+  // between data before and after the magic number is used.
   private static final byte KM_MAGIC_NUMBER = (byte) 0x82;
   // MSB byte is for Major version and LSB byte is for Minor version.
   public static final short KM_APPLET_PACKAGE_VERSION = 0x0301;
-
-  private static final byte KM_BEGIN_STATE = 0x00;
-  private static final byte ILLEGAL_STATE = KM_BEGIN_STATE + 1;
+  // This flag is used to know if card reset happened.
   private static final short POWER_RESET_MASK_FLAG = (short) 0x4000;
 
   // Provider specific Commands
@@ -62,11 +66,11 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
       INS_KEYMINT_PROVIDER_APDU_START + 18;
 
   private static final byte INS_KEYMINT_PROVIDER_APDU_END = 0x1F;
-  public static final byte BOOT_KEY_MAX_SIZE = 32;
-  public static final byte BOOT_HASH_MAX_SIZE = 32;
+  // The length of the provisioned pre shared key.
   public static final byte SHARED_SECRET_KEY_SIZE = 32;
 
-  // Package version.
+  // Version of the database which is used to differentiate between different version of the
+  // database.
   protected short packageVersion;
 
   KMAndroidSEApplet() {
@@ -94,6 +98,20 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
   }
 
   @Override
+  public void updateApduStatusFlags(short apduIns) {
+    apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] = 0;
+    apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] = 1;
+    switch (apduIns) {
+      case INS_GET_PROVISION_STATUS_CMD:
+      case INS_SE_FACTORY_PROVISIONING_LOCK_CMD:
+        apduStatusFlags[APDU_CASE4_COMMAND_STATUS_INDEX] = 0;
+        break;
+      default:
+        super.updateApduStatusFlags(apduIns);
+    }
+  }
+
+  @Override
   public void process(APDU apdu) {
     try {
       handleDeviceBooted();
@@ -107,6 +125,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
       if (apduIns == KMType.INVALID_VALUE) {
         return;
       }
+      updateApduStatusFlags(apduIns);
       if (((KMAndroidSEProvider) seProvider).isPowerReset()) {
         super.powerReset();
       }
@@ -305,8 +324,6 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
   }
 
   private void processProvisionOEMRootPublicKeyCmd(APDU apdu) {
-    // Re-purpose the apdu buffer as scratch pad.
-    byte[] scratchPad = apdu.getBuffer();
     // Arguments
     short keyparams = KMKeyParameters.exp();
     short keyFormatPtr = KMEnum.instance(KMType.KEY_FORMAT);
@@ -407,6 +424,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
     // required here.
     byte[] srcBuffer = apdu.getBuffer();
     short recvLen = apdu.setIncomingAndReceive();
+    apduStatusFlags[APDU_INCOMING_AND_RECEIVE_STATUS_INDEX] = 1;
     short srcOffset = apdu.getOffsetCdata();
     short bufferLength = apdu.getIncomingLength();
     short bufferStartOffset = repository.allocReclaimableMemory(bufferLength);

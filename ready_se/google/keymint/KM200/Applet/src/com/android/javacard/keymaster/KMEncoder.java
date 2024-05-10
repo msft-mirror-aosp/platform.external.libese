@@ -22,6 +22,11 @@ import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
+/**
+ * This class encodes KMType structures to a cbor format data recursively. Encoded bytes are written
+ * on the buffer provided by the caller. An exception will be thrown if the encoded data length is
+ * greater than the buffer length provided.
+ */
 public class KMEncoder {
 
   // major types
@@ -329,13 +334,6 @@ public class KMEncoder {
     }
   }
 
-  public void encodeArrayOnlyLength(short arrLength, byte[] buffer, short offset, short length) {
-    bufferRef[0] = buffer;
-    scratchBuf[START_OFFSET] = offset;
-    scratchBuf[LEN_OFFSET] = (short) (offset + length + 1);
-    writeMajorTypeWithLength(ARRAY_TYPE, length);
-  }
-
   private void encodeMap(short obj) {
     writeMajorTypeWithLength(MAP_TYPE, KMMap.cast(obj).length());
     short len = KMMap.cast(obj).length();
@@ -391,11 +389,19 @@ public class KMEncoder {
 
   private void encodeEnumTag(short obj) {
     writeTag(KMEnumTag.cast(obj).getTagType(), KMEnumTag.cast(obj).getKey());
-    writeByteValue(KMEnumTag.cast(obj).getValue());
+    encodeInteger(
+        KMEnumTag.cast(obj).getBuffer(),
+        KMEnumTag.cast(obj).length(),
+        KMEnumTag.cast(obj).getStartOffset(),
+        UINT_TYPE);
   }
 
   private void encodeEnum(short obj) {
-    writeByteValue(KMEnum.cast(obj).getVal());
+    encodeInteger(
+        KMEnum.cast(obj).getBuffer(),
+        KMEnum.cast(obj).length(),
+        KMEnum.cast(obj).getStartOffset(),
+        UINT_TYPE);
   }
 
   private void encodeInteger(byte[] val, short len, short startOff, short majorType) {
