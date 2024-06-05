@@ -73,6 +73,24 @@ public class KMEnumTag extends KMTag {
     return ptr;
   }
 
+  public static short instance(short key, byte[] val, short valOff, short valLen) {
+    if (valLen == 1) {
+      return instance(key, val[valOff]);
+    }
+    if (!KMEnum.validateEnum(key, val, valOff, valLen)) {
+      ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+    }
+    short ptr =
+        KMType.instance(TAG_TYPE, (short) (2 /* TAG_TYPE */ + 2 /* TAG_KEY */ + KMInteger.UINT_32));
+    Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE), ENUM_TAG);
+    Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE + 2), key);
+    short destValueOff = (short) (ptr + TLV_HEADER_SIZE + 4);
+    Util.arrayFillNonAtomic(heap, destValueOff, KMInteger.UINT_32, (byte) 0);
+    Util.arrayCopyNonAtomic(
+        val, valOff, heap, (short) (destValueOff + KMInteger.UINT_32 - valLen), valLen);
+    return ptr;
+  }
+
   public static KMEnumTag cast(short ptr) {
     if (heap[ptr] != TAG_TYPE) {
       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
@@ -135,6 +153,19 @@ public class KMEnumTag extends KMTag {
       return heap[(short) (tagPtr + TLV_HEADER_SIZE + 4)];
     }
     return KMType.INVALID_VALUE;
+  }
+
+  public short length() {
+    return (short)
+        (Util.getShort(heap, (short) (KMType.instanceTable[KM_ENUM_TAG_OFFSET] + 1)) - 4);
+  }
+
+  public short getStartOffset() {
+    return (short) (KMType.instanceTable[KM_ENUM_TAG_OFFSET] + TLV_HEADER_SIZE + 4);
+  }
+
+  public short value(byte[] dest, short destOff) {
+    return copyToUint32(heap, getStartOffset(), length(), dest, destOff);
   }
 
   public short getKey() {

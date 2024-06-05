@@ -173,17 +173,6 @@ public abstract class KMCosePairTagType extends KMType {
     return value;
   }
 
-  public static void getKeyValue(short keyPtr, byte[] dest, short offset, short len) {
-    short type = KMType.getType(keyPtr);
-    if (type == INTEGER_TYPE) {
-      KMInteger.cast(keyPtr).getValue(dest, offset, len);
-    } else if (type == NEG_INTEGER_TYPE) {
-      KMNInteger.cast(keyPtr).getValue(dest, offset, len);
-    } else {
-      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-    }
-  }
-
   /**
    * Returns the key offset from the key pointer.
    *
@@ -201,25 +190,6 @@ public abstract class KMCosePairTagType extends KMType {
       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     }
     return offset;
-  }
-
-  /**
-   * Returns the key length.
-   *
-   * @param keyPtr pointer to either KMInteger/KMInteger.
-   * @return length of the key.
-   */
-  public static short getKeyLength(short keyPtr) {
-    short type = KMType.getType(keyPtr);
-    short len = 0;
-    if (type == INTEGER_TYPE) {
-      len = KMInteger.cast(keyPtr).length();
-    } else if (type == NEG_INTEGER_TYPE) {
-      len = KMNInteger.cast(keyPtr).length();
-    } else {
-      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-    }
-    return len;
   }
 
   /**

@@ -74,10 +74,6 @@ public class KMCosePairNegIntegerTag extends KMCosePairTagType {
     return ptr;
   }
 
-  public short getValueType() {
-    return NEG_INTEGER_TYPE;
-  }
-
   @Override
   public short getKeyPtr() {
     return Util.getShort(

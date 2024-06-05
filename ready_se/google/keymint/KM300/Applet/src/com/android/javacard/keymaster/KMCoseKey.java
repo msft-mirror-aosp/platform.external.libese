@@ -132,10 +132,6 @@ public class KMCoseKey extends KMCoseMap {
     return valPtr;
   }
 
-  public short getKeyIdentifier() {
-    return getValueType(KMCose.COSE_KEY_KEY_ID, KMType.INVALID_VALUE);
-  }
-
   public short getEcdsa256PublicKey(byte[] pubKey, short pubKeyOff) {
     short baseOffset = pubKeyOff;
     pubKey[pubKeyOff] = (byte) 0x04; // uncompressed.

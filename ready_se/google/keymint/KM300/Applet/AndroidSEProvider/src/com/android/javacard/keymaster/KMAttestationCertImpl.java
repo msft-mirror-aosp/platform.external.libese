@@ -246,8 +246,8 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   @Override
   public KMAttestationCert notBefore(short obj, boolean derEncoded, byte[] scratchpad) {
     if (!derEncoded) {
-      // convert milliseconds to UTC date
-      indexes[NOT_BEFORE] = KMUtils.convertToDate(obj, scratchpad, true);
+      // convert milliseconds to UTC / Generalized time format
+      indexes[NOT_BEFORE] = KMUtils.convertToDate(obj, scratchpad);
     } else {
       indexes[NOT_BEFORE] =
           KMByteBlob.instance(
@@ -263,17 +263,8 @@ public class KMAttestationCertImpl implements KMAttestationCert {
       short usageExpiryTimeObj, boolean derEncoded, byte[] scratchPad) {
     if (!derEncoded) {
       if (usageExpiryTimeObj != KMType.INVALID_VALUE) {
-        // compare if the expiry time is greater then 2050 then use generalized
-        // time format else use utc time format.
-        short tmpVar = KMInteger.uint_64(KMUtils.firstJan2050, (short) 0);
-        if (KMInteger.compare(usageExpiryTimeObj, tmpVar) >= 0) {
-          usageExpiryTimeObj = KMUtils.convertToDate(usageExpiryTimeObj, scratchPad, false);
-        } else {
-          usageExpiryTimeObj = KMUtils.convertToDate(usageExpiryTimeObj, scratchPad, true);
-        }
-        indexes[NOT_AFTER] = usageExpiryTimeObj;
-      } else {
-        // notAfter = certExpirtyTimeObj;
+        // convert milliseconds to UTC / Generalized time format
+        indexes[NOT_AFTER] = KMUtils.convertToDate(usageExpiryTimeObj, scratchPad);
       }
     } else {
       indexes[NOT_AFTER] = usageExpiryTimeObj;
@@ -328,11 +319,14 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     short len = KMEnumArrayTag.cast(tag).length();
     byte index = 0;
     while (index < len) {
-      if (KMEnumArrayTag.cast(tag).get(index) == KMType.SIGN) {
+      if (KMEnumArrayTag.cast(tag).get(index) == KMType.SIGN ||
+          KMEnumArrayTag.cast(tag).get(index) == KMType.VERIFY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageSign);
       } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.WRAP_KEY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyEncipher);
-      } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.DECRYPT) {
+      } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.DECRYPT ||
+          KMEnumArrayTag.cast(tag).get(index) == KMType.ENCRYPT) {
+        states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyEncipher);
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageDataEncipher);
       } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.AGREE_KEY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyAgreement);
@@ -792,6 +786,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     pushByte(keyUsage);
     pushBitStringHeader(unusedBits, (short) (last - indexes[STACK_PTR]));
     pushOctetStringHeader((short) (last - indexes[STACK_PTR]));
+    pushBoolean((byte) 1); // Critical
     pushBytes(keyUsageExtn, (short) 0, (short) keyUsageExtn.length);
     pushSequenceHeader((short) (last - indexes[STACK_PTR]));
   }

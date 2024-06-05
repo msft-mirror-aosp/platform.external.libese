@@ -27,19 +27,11 @@ public class KMCose {
 
   // COSE SIGN1
   public static final byte COSE_SIGN1_ENTRY_COUNT = 4;
-  public static final byte COSE_SIGN1_PROTECTED_PARAMS_OFFSET = 0;
-  public static final byte COSE_SIGN1_PAYLOAD_OFFSET = 2;
-  public static final byte COSE_SIGN1_SIGNATURE_OFFSET = 3;
   // COSE MAC0
   public static final byte COSE_MAC0_ENTRY_COUNT = 4;
   public static final byte COSE_MAC0_PROTECTED_PARAMS_OFFSET = 0;
   public static final byte COSE_MAC0_PAYLOAD_OFFSET = 2;
   public static final byte COSE_MAC0_TAG_OFFSET = 3;
-  // COSE ENCRYPT
-  public static final byte COSE_ENCRYPT_ENTRY_COUNT = 4;
-  public static final byte COSE_ENCRYPT_STRUCTURE_ENTRY_COUNT = 3;
-  public static final byte COSE_ENCRYPT_RECIPIENT_ENTRY_COUNT = 3;
-
   // COSE Labels
   public static final byte COSE_LABEL_ALGORITHM = 1;
   public static final byte COSE_LABEL_KEYID = 4;
@@ -61,10 +53,6 @@ public class KMCose {
 
   // COSE Key Operations
   public static final byte COSE_KEY_OP_SIGN = 1;
-  public static final byte COSE_KEY_OP_VERIFY = 2;
-  public static final byte COSE_KEY_OP_ENCRYPT = 3;
-  public static final byte COSE_KEY_OP_DECRYPT = 4;
-
   // AES GCM
   public static final short AES_GCM_KEY_SIZE_BITS = 256;
   // Cose key parameters.
@@ -250,11 +238,9 @@ public class KMCose {
    * Constructs array based on the tag values provided.
    *
    * @param tag array of tag values to be constructed.
-   * @param includeTestMode flag which indicates if TEST_COSE_KEY should be included or not.
    * @return instance of KMArray.
    */
-  private static short handleCosePairTags(
-      short[] tag, short[] keyValues, short valueIndex, boolean includeTestMode) {
+  private static short handleCosePairTags(short[] tag, short[] keyValues, short valueIndex) {
     short index = 0;
     // var is used to calculate the length of the array.
     short var = 0;
@@ -268,7 +254,6 @@ public class KMCose {
       }
       index++;
     }
-    var += includeTestMode ? 1 : 0;
     short arrPtr = KMArray.instance(var);
     index = 0;
     // var is used to index the array.
@@ -322,7 +307,7 @@ public class KMCose {
     for (short i = 4; i < 8; i++) {
       buff[i] = KMType.INVALID_VALUE;
     }
-    short ptr = handleCosePairTags(COSE_HEADER_LABELS, buff, (short) 4, false);
+    short ptr = handleCosePairTags(COSE_HEADER_LABELS, buff, (short) 4);
     ptr = KMCoseHeaders.instance(ptr);
     KMCoseHeaders.cast(ptr).canonicalize();
     return ptr;
@@ -373,7 +358,6 @@ public class KMCose {
    * @param pubKeyOff Start offset of the buffer.
    * @param pubKeyLen Length of the public key.
    * @param privKeyPtr Instance of the private key.
-   * @param testMode Represents if key is used in test mode or production mode.
    * @return Instance of the CoseKey structure.
    */
   public static short constructCoseKey(
@@ -385,8 +369,7 @@ public class KMCose {
       byte[] pubKey,
       short pubKeyOff,
       short pubKeyLen,
-      short privKeyPtr,
-      boolean testMode) {
+      short privKeyPtr) {
     if (pubKey[pubKeyOff] == 0x04) { // uncompressed format
       pubKeyOff += 1;
       pubKeyLen -= 1;
@@ -394,8 +377,7 @@ public class KMCose {
     pubKeyLen = (short) (pubKeyLen / 2);
     short xPtr = KMByteBlob.instance(pubKey, pubKeyOff, pubKeyLen);
     short yPtr = KMByteBlob.instance(pubKey, (short) (pubKeyOff + pubKeyLen), pubKeyLen);
-    short coseKey =
-        constructCoseKey(buff, keyType, keyId, keyAlg, curve, xPtr, yPtr, privKeyPtr, testMode);
+    short coseKey = constructCoseKey(buff, keyType, keyId, keyAlg, curve, xPtr, yPtr, privKeyPtr);
     KMCoseKey.cast(coseKey).canonicalize();
     return coseKey;
   }
@@ -411,7 +393,6 @@ public class KMCose {
    * @param pubX instance of KMByteBlob which holds EC public key's x value.
    * @param pubY instance of KMByteBlob which holds EC public key's y value.
    * @param priv instance of KMByteBlob which holds EC private value.
-   * @param includeTestKey flag which identifies whether to construct test key or production key.
    * @return instance of the KMCoseKey object.
    */
   public static short constructCoseKey(
@@ -422,8 +403,7 @@ public class KMCose {
       short curve,
       short pubX,
       short pubY,
-      short priv,
-      boolean includeTestKey) {
+      short priv) {
     short valueIndex = 7;
     buff[0] = keyType;
     buff[1] = keyId;
@@ -435,14 +415,7 @@ public class KMCose {
     for (short i = valueIndex; i < 16; i++) {
       buff[i] = KMType.INVALID_VALUE;
     }
-    short arrPtr = handleCosePairTags(COSE_KEY_LABELS, buff, valueIndex, includeTestKey);
-    if (includeTestKey) {
-      short testKey =
-          KMCosePairSimpleValueTag.instance(
-              KMNInteger.uint_32(KMCose.COSE_TEST_KEY, (short) 0),
-              KMSimpleValue.instance(KMSimpleValue.NULL));
-      KMArray.cast(arrPtr).add((short) (KMArray.cast(arrPtr).length() - 1), testKey);
-    }
+    short arrPtr = handleCosePairTags(COSE_KEY_LABELS, buff, valueIndex);
     arrPtr = KMCoseKey.instance(arrPtr);
     KMCoseKey.cast(arrPtr).canonicalize();
     return arrPtr;
