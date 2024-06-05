@@ -38,6 +38,12 @@ public class KMTag extends KMType {
     return Util.getShort(heap, (short) (ptr + TLV_HEADER_SIZE + 2));
   }
 
+  public static void assertLE(short val1, short val2, short error) {
+    if (val1 > val2) {
+      KMException.throwIt(error);
+    }
+  }
+
   public static void assertPresence(short params, short tagType, short tagKey, short error) {
     if (!isPresent(params, tagType, tagKey)) {
       KMException.throwIt(error);

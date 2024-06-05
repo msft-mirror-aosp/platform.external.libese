@@ -318,11 +318,14 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     short len = KMEnumArrayTag.cast(tag).length();
     byte index = 0;
     while (index < len) {
-      if (KMEnumArrayTag.cast(tag).get(index) == KMType.SIGN) {
+      if (KMEnumArrayTag.cast(tag).get(index) == KMType.SIGN ||
+          KMEnumArrayTag.cast(tag).get(index) == KMType.VERIFY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageSign);
       } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.WRAP_KEY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyEncipher);
-      } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.DECRYPT) {
+      } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.DECRYPT ||
+          KMEnumArrayTag.cast(tag).get(index) == KMType.ENCRYPT) {
+        states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyEncipher);
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageDataEncipher);
       } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.AGREE_KEY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyAgreement);
@@ -782,6 +785,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     pushByte(keyUsage);
     pushBitStringHeader(unusedBits, (short) (last - indexes[STACK_PTR]));
     pushOctetStringHeader((short) (last - indexes[STACK_PTR]));
+    pushBoolean((byte) 1); // Critical
     pushBytes(keyUsageExtn, (short) 0, (short) keyUsageExtn.length);
     pushSequenceHeader((short) (last - indexes[STACK_PTR]));
   }
