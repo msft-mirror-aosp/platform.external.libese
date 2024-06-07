@@ -555,6 +555,8 @@ public class KMKeymintDataStore implements KMUpgradable {
     }
     if (preSharedKey == null) {
       preSharedKey = seProvider.createPreSharedKey(preSharedKey, keyData, offset, length);
+    } else {
+      seProvider.createPreSharedKey(preSharedKey, keyData, offset, length);
     }
   }
 
