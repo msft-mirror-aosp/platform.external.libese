@@ -33,12 +33,6 @@ cc_defaults {
         "-Wall",
         "-Werror",
     ],
-
-    // This doesn't work yet, but is good documentation for when
-    // debugging is needed.
-    debug:  {
-        cflags: ["-DLOG_NDEBUG=0"],
-    },
 }
 
 cc_library_headers {
@@ -70,8 +64,14 @@ cc_library {
         "ese_sg.c",
     ],
 
-    shared_libs: ["libese-sysdeps", "liblog"],
-    export_shared_lib_headers: ["libese-sysdeps", "liblog"],
+    shared_libs: [
+        "libese-sysdeps",
+        "liblog",
+    ],
+    export_shared_lib_headers: [
+        "libese-sysdeps",
+        "liblog",
+    ],
 }
 
 subdirs = ["tests"]
