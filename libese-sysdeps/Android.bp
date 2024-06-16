@@ -33,9 +33,6 @@ cc_library {
         "-Wall",
         "-Werror",
     ],
-    debug:  {
-        cflags: ["-DLOG_NDEBUG=0"],
-    },
     target: {
         linux: {
             srcs: ["android-sysdeps.c"],
