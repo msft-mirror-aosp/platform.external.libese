@@ -75,50 +75,43 @@ public class KMByteTag extends KMTag {
 
   private static boolean validateKey(short key, short byteBlob) {
     short valueLen = KMByteBlob.cast(byteBlob).length();
+    short expectedLen = 0;
     switch (key) {
-      case ATTESTATION_APPLICATION_ID:
-        if (valueLen > MAX_ATTESTATION_APP_ID_SIZE) {
-          return false;
-        }
-        break;
-      case CERTIFICATE_SUBJECT_NAME:
-        {
-          if (valueLen > KMConfigurations.MAX_SUBJECT_DER_LEN) {
-            return false;
-          }
-          KMAsn1Parser asn1Decoder = KMAsn1Parser.instance();
-          asn1Decoder.validateDerSubject(byteBlob);
-        }
-        break;
-      case APPLICATION_ID:
-      case APPLICATION_DATA:
-        if (valueLen > MAX_APP_ID_APP_DATA_SIZE) {
-          return false;
-        }
-        break;
-      case ATTESTATION_CHALLENGE:
-        if (valueLen > MAX_ATTESTATION_CHALLENGE_SIZE) {
-          return false;
-        }
-        break;
-      case ATTESTATION_ID_BRAND:
-      case ATTESTATION_ID_DEVICE:
-      case ATTESTATION_ID_PRODUCT:
-      case ATTESTATION_ID_SERIAL:
-      case ATTESTATION_ID_IMEI:
-      case ATTESTATION_ID_SECOND_IMEI:
-      case ATTESTATION_ID_MEID:
-      case ATTESTATION_ID_MANUFACTURER:
-      case ATTESTATION_ID_MODEL:
-        if (valueLen > KMConfigurations.MAX_ATTESTATION_IDS_SIZE) {
-          return false;
-        }
-        break;
-      case ROOT_OF_TRUST:
-      case NONCE:
-        break;
-      default:
-        return false;
+    case ATTESTATION_APPLICATION_ID:
+      expectedLen = MAX_ATTESTATION_APP_ID_SIZE;
+      break;
+    case CERTIFICATE_SUBJECT_NAME:
+      expectedLen = KMConfigurations.MAX_SUBJECT_DER_LEN;
+      break;
+    case APPLICATION_ID:
+    case APPLICATION_DATA:
+      expectedLen = MAX_APP_ID_APP_DATA_SIZE;
+      break;
+    case ATTESTATION_CHALLENGE:
+      expectedLen = MAX_ATTESTATION_CHALLENGE_SIZE;
+      break;
+    case ATTESTATION_ID_BRAND:
+    case ATTESTATION_ID_DEVICE:
+    case ATTESTATION_ID_PRODUCT:
+    case ATTESTATION_ID_SERIAL:
+    case ATTESTATION_ID_IMEI:
+    case ATTESTATION_ID_SECOND_IMEI:
+    case ATTESTATION_ID_MEID:
+    case ATTESTATION_ID_MANUFACTURER:
+    case ATTESTATION_ID_MODEL:
+      expectedLen = KMConfigurations.MAX_ATTESTATION_IDS_SIZE;
+      break;
+    case NONCE:
+      // Nonce validation occurs during the begin operation, as its validation relies
+      // on other TAGs.
+      return true;
+    default:
+      return false;
+    }
+    KMTag.assertLE(valueLen, expectedLen, KMError.INVALID_INPUT_LENGTH);
+    if (key == CERTIFICATE_SUBJECT_NAME) {
+      KMAsn1Parser asn1Decoder = KMAsn1Parser.instance();
+      asn1Decoder.validateDerSubject(byteBlob);
     }
     return true;
   }
