@@ -40,7 +40,6 @@ cc_library {
         "-Werror",
         "-Wno-error=unused-variable",
         "-Wno-format",
-        "-Wno-single-bit-bitfield-constant-conversion",
     ],
     target: {
         darwin: {
@@ -73,7 +72,6 @@ cc_library {
     srcs: ["pn80t/linux_spidev.c"],
     cflags: [
         "-Wno-format",
-        "-Wno-single-bit-bitfield-constant-conversion",
     ],
     export_include_dirs: ["include"],
 }
@@ -87,7 +85,6 @@ cc_library {
         "-Werror",
         "-Wno-error=unused-variable",
         "-Wno-format",
-        "-Wno-single-bit-bitfield-constant-conversion",
     ],
     export_include_dirs: ["include"],
 }
