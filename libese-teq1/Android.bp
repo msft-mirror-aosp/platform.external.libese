@@ -28,7 +28,7 @@ cc_library {
     defaults: ["libese-api-defaults"],
     host_supported: true,
     srcs: ["teq1.c"],
-    cflags: ["-Wall", "-Werror"],
+    cflags: ["-Wall", "-Wno-single-bit-bitfield-constant-conversion", "-Werror"],
     shared_libs: ["liblog", "libese", "libese-sysdeps"],
     export_include_dirs: ["include"],
 }
@@ -40,7 +40,7 @@ cc_library {
     host_supported: true,
 
     srcs: ["teq1.c"],
-    cflags: ["-Wall", "-Werror"],
+    cflags: ["-Wall", "-Wno-single-bit-bitfield-constant-conversion", "-Werror"],
 
     // Ensure that only explicitly exported symbols are visible.
     shared_libs: ["liblog", "libese", "libese-sysdeps"],
