@@ -34,7 +34,6 @@ cc_defaults {
     },
     cflags: [
         "-std=c99",
-        "-D_FORTIFY_SOURCE=2",
         "-Wall",
         "-Werror",
         "-Wno-error=unused-variable",
