@@ -29,6 +29,7 @@ cc_defaults {
     proprietary: true,
     cflags: [
         "-std=c99",
+        "-D_FORTIFY_SOURCE=2",
         "-Wall",
         "-Werror",
     ],
