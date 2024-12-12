@@ -29,7 +29,6 @@ cc_defaults {
     name: "libapdu_defaults",
     proprietary: true,
     cflags: [
-        "-pedantic",
         "-Wall",
         "-Wextra",
         "-Werror",
