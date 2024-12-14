@@ -27,7 +27,6 @@ cc_defaults {
     name: "esed_defaults",
     proprietary: true,
     cflags: [
-        "-pedantic",
         "-Wall",
         "-Wextra",
         "-Werror",

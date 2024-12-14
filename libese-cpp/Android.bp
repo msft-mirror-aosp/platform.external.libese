@@ -27,7 +27,6 @@ cc_defaults {
     name: "libese_cpp_defaults",
     proprietary: true,
     cflags: [
-        "-pedantic",
         "-Wall",
         "-Wextra",
         "-Werror",
