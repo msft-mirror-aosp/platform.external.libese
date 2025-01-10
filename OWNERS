@@ -2,3 +2,4 @@ ascull@google.com
 drewry@google.com
 swillden@google.com
 manishdwivedi@google.com
+include platform/system/core:/janitors/OWNERS #{LAST_RESORT_SUGGESTION}
