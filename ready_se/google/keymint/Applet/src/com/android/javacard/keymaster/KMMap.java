@@ -51,6 +51,7 @@ public class KMMap extends KMType {
   }
 
   public static short instance(short length) {
+    assertWithinBounds(length, (short) ((Short.MAX_VALUE - MAP_HEADER_SIZE) / 4));
     short ptr = KMType.instance(MAP_TYPE, (short) (MAP_HEADER_SIZE + (length * 4)));
     Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE), (short) 0);
     Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE + 2), length);

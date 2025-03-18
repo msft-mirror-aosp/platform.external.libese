@@ -61,6 +61,7 @@ public class KMArray extends KMType {
   }
 
   public static short instance(short length) {
+    assertWithinBounds(length, (short) ((Short.MAX_VALUE - ARRAY_HEADER_SIZE) / 2));
     short ptr = KMType.instance(ARRAY_TYPE, (short) (ARRAY_HEADER_SIZE + (length * 2)));
     Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE), KMType.INVALID_VALUE);
     Util.setShort(heap, (short) (ptr + TLV_HEADER_SIZE + 2), length);
