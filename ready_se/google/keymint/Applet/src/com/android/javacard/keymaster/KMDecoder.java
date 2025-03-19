@@ -753,6 +753,9 @@ public class KMDecoder {
   }
 
   private void incrementStartOff(short inc) {
+    if (inc < 0 || scratchBuf[START_OFFSET] > (short) (Short.MAX_VALUE - inc)) {
+      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    }
     scratchBuf[START_OFFSET] += inc;
     if (scratchBuf[START_OFFSET] > scratchBuf[LEN_OFFSET]) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
