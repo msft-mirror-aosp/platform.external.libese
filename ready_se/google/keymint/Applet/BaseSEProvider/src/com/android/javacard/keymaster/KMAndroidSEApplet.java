@@ -578,6 +578,7 @@ public abstract class KMAndroidSEApplet extends KMKeymasterApplet implements OnU
       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     }
     kmDataStore.onRestore(element, oldPackageVersion, KM_APPLET_PACKAGE_VERSION);
+    initializeUniqueIdKey();
   }
 
   @Override

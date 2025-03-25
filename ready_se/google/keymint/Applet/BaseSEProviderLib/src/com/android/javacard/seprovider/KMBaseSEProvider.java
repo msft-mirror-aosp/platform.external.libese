@@ -60,8 +60,6 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
   // Below are the flag to denote device reset events
   public static final byte POWER_RESET_FALSE = (byte) 0xAA;
   public static final byte POWER_RESET_TRUE = (byte) 0x00;
-  // The computed HMAC key size.
-  private static final byte COMPUTED_HMAC_KEY_SIZE = 32;
   private static final short SEED_CHUNK_SIZE = (short) 256;
   // The constant 'L' as defiend in
   // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf, page 12.
@@ -1241,18 +1239,18 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
   }
 
   @Override
-  public KMKey createComputedHmacKey(
-      KMKey computedHmacKey, byte[] keyData, short offset, short length) {
-    if (length != COMPUTED_HMAC_KEY_SIZE) {
+  public KMKey createKMHmacKey(KMKey kmHmacKey, byte[] keyData, short offset, short length) {
+    // The maximum supported KMHMAC key size is 32 bytes
+    if (length < 0 || length > 32) {
       CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
     }
-    if (computedHmacKey == null) {
+    if (kmHmacKey == null) {
       HMACKey key =
           (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, (short) (length * 8), false);
-      computedHmacKey = new KMHmacKey(key);
+      kmHmacKey = new KMHmacKey(key);
     }
-    ((KMHmacKey) computedHmacKey).hmacKey.setKey(keyData, offset, length);
-    return (KMKey) computedHmacKey;
+    ((KMHmacKey) kmHmacKey).hmacKey.setKey(keyData, offset, length);
+    return (KMKey) kmHmacKey;
   }
 
   @Override

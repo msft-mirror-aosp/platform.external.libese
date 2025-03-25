@@ -669,12 +669,13 @@ public interface KMSEProvider {
   /**
    * This function creates an HMACKey and initializes the key with the provided input key data.
    *
+   * @param kmHmacKey instance of the KMKey
    * @param keyData buffer containing the key data.
    * @param offset start of the buffer.
    * @param length length of the buffer.
    * @return An instance of the KMComputedHmacKey.
    */
-  KMKey createComputedHmacKey(KMKey computedHmacKey, byte[] keyData, short offset, short length);
+  KMKey createKMHmacKey(KMKey kmHmacKey, byte[] keyData, short offset, short length);
 
   /** Returns true if factory provisioned attestation key is supported. */
   boolean isAttestationKeyProvisioned();
