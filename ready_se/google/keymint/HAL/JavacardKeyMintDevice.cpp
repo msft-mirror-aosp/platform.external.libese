@@ -409,8 +409,8 @@ ScopedAStatus JavacardKeyMintDevice::getRootOfTrustChallenge(array<uint8_t, 16>*
         return km_utils::kmError2ScopedAStatus(err);
     }
     auto optChallenge = cbor_.getByteArrayVec(item, 1);
-    if (!optChallenge) {
-        LOG(ERROR) << "Error in sending in upgradeKey.";
+    if (!optChallenge || optChallenge->size() != 16) {
+        LOG(ERROR) << "Root Of Trust challenge size is not 16 bytes.";
         return km_utils::kmError2ScopedAStatus(KM_ERROR_UNKNOWN_ERROR);
     }
     std::move(optChallenge->begin(), optChallenge->begin() + 16, challenge->begin());
