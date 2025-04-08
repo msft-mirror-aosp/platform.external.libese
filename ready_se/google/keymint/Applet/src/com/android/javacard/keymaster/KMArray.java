@@ -81,58 +81,24 @@ public class KMArray extends KMType {
   }
 
   public void add(short index, short objPtr) {
-    short len = length();
-    if (index >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
+    assertWithinBounds(index, (short) (length() - 1));
     Util.setShort(heap, (short) (getStartOff() + (short) (index * 2)), objPtr);
   }
 
   public short get(short index) {
-    short len = length();
-    if (index >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
+    assertWithinBounds(index, (short) (length() - 1));
     return Util.getShort(heap, (short) (getStartOff() + (short) (index * 2)));
   }
 
   public void swap(short index1, short index2) {
     short len = length();
-    if (index1 >= len || index2 >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
-    short indexPtr1 =
-        Util.getShort(
-            heap,
-            (short)
-                (instanceTable[KM_ARRAY_OFFSET]
-                    + TLV_HEADER_SIZE
-                    + ARRAY_HEADER_SIZE
-                    + (short) (index1 * 2)));
-    short indexPtr2 =
-        Util.getShort(
-            heap,
-            (short)
-                (instanceTable[KM_ARRAY_OFFSET]
-                    + TLV_HEADER_SIZE
-                    + ARRAY_HEADER_SIZE
-                    + (short) (index2 * 2)));
-    Util.setShort(
-        heap,
-        (short)
-            (instanceTable[KM_ARRAY_OFFSET]
-                + TLV_HEADER_SIZE
-                + ARRAY_HEADER_SIZE
-                + (short) (index1 * 2)),
-        indexPtr2);
-    Util.setShort(
-        heap,
-        (short)
-            (instanceTable[KM_ARRAY_OFFSET]
-                + TLV_HEADER_SIZE
-                + ARRAY_HEADER_SIZE
-                + (short) (index2 * 2)),
-        indexPtr1);
+    assertWithinBounds(index1, (short) (len - 1));
+    assertWithinBounds(index2, (short) (len - 1));
+    short offset = getStartOff();
+    short indexPtr1 = Util.getShort(heap, (short) (offset + (index1 * 2)));
+    short indexPtr2 = Util.getShort(heap, (short) (offset + (index2 * 2)));
+    Util.setShort(heap, (short) (offset + (index1 * 2)), indexPtr2);
+    Util.setShort(heap, (short) (offset + (index2 * 2)), indexPtr1);
   }
 
   public short containedType() {
@@ -149,6 +115,7 @@ public class KMArray extends KMType {
   }
 
   public short setLength(short len) {
+    assertWithinBounds(len, length());
     return Util.setShort(
         heap, (short) (KMType.instanceTable[KM_ARRAY_OFFSET] + TLV_HEADER_SIZE + 2), len);
   }

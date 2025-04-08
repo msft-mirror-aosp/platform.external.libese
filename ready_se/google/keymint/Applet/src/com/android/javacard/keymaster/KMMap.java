@@ -71,120 +71,38 @@ public class KMMap extends KMType {
   }
 
   public void add(short index, short keyPtr, short valPtr) {
-    short len = length();
-    if (index >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
-    short keyIndex =
-        (short)
-            (instanceTable[KM_MAP_OFFSET]
-                + TLV_HEADER_SIZE
-                + MAP_HEADER_SIZE
-                + (short) (index * 4));
+    assertWithinBounds(index, (short) (length() - 1));
+    short keyIndex = (short) (getStartOff() + (short) (index * 4));
     Util.setShort(heap, keyIndex, keyPtr);
     Util.setShort(heap, (short) (keyIndex + 2), valPtr);
   }
 
   public short getKey(short index) {
-    short len = length();
-    if (index >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
-    return Util.getShort(
-        heap,
-        (short)
-            (instanceTable[KM_MAP_OFFSET]
-                + TLV_HEADER_SIZE
-                + MAP_HEADER_SIZE
-                + (short) (index * 4)));
+    assertWithinBounds(index, (short) (length() - 1));
+    return Util.getShort(heap, (short) (getStartOff() + (short) (index * 4)));
   }
 
   public short getKeyValue(short index) {
-    short len = length();
-    if (index >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
-    return Util.getShort(
-        heap,
-        (short)
-            (instanceTable[KM_MAP_OFFSET]
-                + TLV_HEADER_SIZE
-                + MAP_HEADER_SIZE
-                + (short) (index * 4 + 2)));
+    assertWithinBounds(index, (short) (length() - 1));
+    return Util.getShort(heap, (short) (getStartOff() + (short) (index * 4 + 2)));
   }
 
   public void swap(short index1, short index2) {
     short len = length();
-    if (index1 >= len || index2 >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
+    assertWithinBounds(index1, (short) (len - 1));
+    assertWithinBounds(index2, (short) (len - 1));
+    short offset = getStartOff();
     // Swap keys
-    short indexPtr1 =
-        Util.getShort(
-            heap,
-            (short)
-                (instanceTable[KM_MAP_OFFSET]
-                    + TLV_HEADER_SIZE
-                    + MAP_HEADER_SIZE
-                    + (short) (index1 * 4)));
-    short indexPtr2 =
-        Util.getShort(
-            heap,
-            (short)
-                (instanceTable[KM_MAP_OFFSET]
-                    + TLV_HEADER_SIZE
-                    + MAP_HEADER_SIZE
-                    + (short) (index2 * 4)));
-    Util.setShort(
-        heap,
-        (short)
-            (instanceTable[KM_MAP_OFFSET]
-                + TLV_HEADER_SIZE
-                + MAP_HEADER_SIZE
-                + (short) (index1 * 4)),
-        indexPtr2);
-    Util.setShort(
-        heap,
-        (short)
-            (instanceTable[KM_MAP_OFFSET]
-                + TLV_HEADER_SIZE
-                + MAP_HEADER_SIZE
-                + (short) (index2 * 4)),
-        indexPtr1);
+    short indexPtr1 = Util.getShort(heap, (short) (offset + (index1 * 4)));
+    short indexPtr2 = Util.getShort(heap, (short) (offset + (index2 * 4)));
+    Util.setShort(heap, (short) (offset + index1 * 4), indexPtr2);
+    Util.setShort(heap, (short) (offset + index2 * 4), indexPtr1);
 
     // Swap Values
-    indexPtr1 =
-        Util.getShort(
-            heap,
-            (short)
-                (instanceTable[KM_MAP_OFFSET]
-                    + TLV_HEADER_SIZE
-                    + MAP_HEADER_SIZE
-                    + (short) (index1 * 4 + 2)));
-    indexPtr2 =
-        Util.getShort(
-            heap,
-            (short)
-                (instanceTable[KM_MAP_OFFSET]
-                    + TLV_HEADER_SIZE
-                    + MAP_HEADER_SIZE
-                    + (short) (index2 * 4 + 2)));
-    Util.setShort(
-        heap,
-        (short)
-            (instanceTable[KM_MAP_OFFSET]
-                + TLV_HEADER_SIZE
-                + MAP_HEADER_SIZE
-                + (short) (index1 * 4 + 2)),
-        indexPtr2);
-    Util.setShort(
-        heap,
-        (short)
-            (instanceTable[KM_MAP_OFFSET]
-                + TLV_HEADER_SIZE
-                + MAP_HEADER_SIZE
-                + (short) (index2 * 4 + 2)),
-        indexPtr1);
+    indexPtr1 = Util.getShort(heap, (short) (offset + (short) (index1 * 4 + 2)));
+    indexPtr2 = Util.getShort(heap, (short) (offset + (short) (index2 * 4 + 2)));
+    Util.setShort(heap, (short) (offset + (short) (index1 * 4 + 2)), indexPtr2);
+    Util.setShort(heap, (short) (offset + (short) (index2 * 4 + 2)), indexPtr1);
   }
 
   public void canonicalize() {

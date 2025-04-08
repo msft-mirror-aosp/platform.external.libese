@@ -141,11 +141,13 @@ public class KMIntegerArrayTag extends KMTag {
   }
 
   public void add(short index, short val) {
+    assertWithinBounds(index, (short) (length() - 1));
     KMArray arr = KMArray.cast(getValues());
     arr.add(index, val);
   }
 
   public short get(short index) {
+    assertWithinBounds(index, (short) (length() - 1));
     KMArray arr = KMArray.cast(getValues());
     return arr.get(index);
   }

@@ -1768,10 +1768,10 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
         || KMByteBlob.cast(data[APP_DATA]).length() > KMByteTag.MAX_APP_ID_APP_DATA_SIZE) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
     }
-    if (!KMByteBlob.cast(data[APP_ID]).isValid()) {
+    if (KMByteBlob.cast(data[APP_ID]).isEmpty()) {
       data[APP_ID] = KMType.INVALID_VALUE;
     }
-    if (!KMByteBlob.cast(data[APP_DATA]).isValid()) {
+    if (KMByteBlob.cast(data[APP_DATA]).isEmpty()) {
       data[APP_DATA] = KMType.INVALID_VALUE;
     }
     // Check if key requires upgrade. The KeyBlob is parsed inside isKeyUpgradeRequired

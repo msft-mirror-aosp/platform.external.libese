@@ -75,19 +75,13 @@ public class KMByteBlob extends KMType {
 
   // Add the byte
   public void add(short index, byte val) {
-    short len = length();
-    if (index >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
+    assertWithinBounds(index, (short) (length() - 1));
     heap[(short) (getStartOff() + index)] = val;
   }
 
   // Get the byte
   public byte get(short index) {
-    short len = length();
-    if (index >= len) {
-      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-    }
+    assertWithinBounds(index, (short) (length() - 1));
     return heap[(short) (getStartOff() + index)];
   }
 
@@ -96,7 +90,17 @@ public class KMByteBlob extends KMType {
     return Util.getShort(heap, (short) (getBaseOffset() + TLV_HEADER_SIZE));
   }
 
+  // Sets the starting offset of the data within the allocated buffer.
+  // <B>Important:</B> The caller <B>must</B> invoke {@link #setLength(short)} immediately
+  // after calling this method, and ensure it is called with the <B>correct new length</B>
+  // of the data. Failure to do so will result in a length mismatch and potential data
+  // corruption or unexpected behavior.
   public void setStartOff(short offset) {
+    short startOffset = getStartOff();
+    short endOffset = (short) (startOffset + length());
+    if (offset < startOffset || offset >= endOffset) {
+      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    }
     Util.setShort(heap, (short) (getBaseOffset() + TLV_HEADER_SIZE), offset);
   }
 
@@ -128,8 +132,13 @@ public class KMByteBlob extends KMType {
     setLength(srcLength);
   }
 
-  public boolean isValid() {
-    return (length() != 0);
+  /**
+   * Checks if the blob is empty.
+   * Note: A negative length check is unnecessary as length is validated
+   * during KMByteBlob instantiation.
+   */
+  public boolean isEmpty() {
+    return (length() == 0);
   }
 
   protected short getBaseOffset() {
@@ -137,6 +146,7 @@ public class KMByteBlob extends KMType {
   }
 
   public void setLength(short len) {
+    assertWithinBounds(len, length());
     Util.setShort(heap, (short) (getBaseOffset() + 1), len);
   }
 }
