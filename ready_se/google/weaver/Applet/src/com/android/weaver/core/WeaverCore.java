@@ -28,7 +28,8 @@ import javacard.framework.Shareable;
 class WeaverCore extends Applet implements OnUpgradeListener {
     public static final byte[] COMMAPP_APPLET_AID
             = new byte[] {(byte) 0xA0, 0x00, 0x00, 0x04, 0x76, 0x57, 0x56,
-                                 0x52, 0x43, 0x4F, 0x4D, 0x4D, 0x30};
+                                 0x52, 0x43, 0x4F, 0x4D, 0x4D, 0x30, 0x01,
+                                 0x01, 0x01};
 
     // MSB byte is for Major version and LSB byte is for Minor version.
     public static final short WEAVER_PACKAGE_VERSION = 0x0200;
@@ -60,7 +61,7 @@ class WeaverCore extends Applet implements OnUpgradeListener {
      */
     @Override
     public Shareable getShareableInterfaceObject(AID clientAid, byte arg) {
-        if (!clientAid.partialEquals(COMMAPP_APPLET_AID, (short) 0, (byte) COMMAPP_APPLET_AID.length)) {
+        if (!clientAid.equals(COMMAPP_APPLET_AID, (short) 0, (byte) COMMAPP_APPLET_AID.length)) {
             return null;
         }
         return (arg == 0) ? mSlots : null;
