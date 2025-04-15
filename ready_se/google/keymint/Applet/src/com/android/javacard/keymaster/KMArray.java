@@ -115,7 +115,7 @@ public class KMArray extends KMType {
         heap, (short) (KMType.instanceTable[KM_ARRAY_OFFSET] + TLV_HEADER_SIZE + 2));
   }
 
-  public short setLength(short len) {
+  public short reduceLength(short len) {
     assertWithinBounds(len, length());
     return Util.setShort(
         heap, (short) (KMType.instanceTable[KM_ARRAY_OFFSET] + TLV_HEADER_SIZE + 2), len);

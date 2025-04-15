@@ -2728,7 +2728,7 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
         }
       }
     }
-    KMByteBlob.cast(data[OUTPUT_DATA]).setLength(len);
+    KMByteBlob.cast(data[OUTPUT_DATA]).reduceLength(len);
   }
 
   private void finishKeyAgreementOperation(KMOperationState op, byte[] scratchPad) {
@@ -3115,7 +3115,7 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
       }
       // Adjust the Output data if it is not equal to input data.
       // This happens in case of JCardSim provider.
-      KMByteBlob.cast(data[OUTPUT_DATA]).setLength(len);
+      KMByteBlob.cast(data[OUTPUT_DATA]).reduceLength(len);
     }
 
     if (data[OUTPUT_DATA] == KMType.INVALID_VALUE) {

@@ -129,7 +129,7 @@ public class KMByteBlob extends KMType {
       ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
     }
     Util.arrayCopyNonAtomic(srcBuf, srcStart, heap, getStartOff(), srcLength);
-    setLength(srcLength);
+    reduceLength(srcLength);
   }
 
   /**
@@ -145,7 +145,7 @@ public class KMByteBlob extends KMType {
     return instanceTable[KM_BYTE_BLOB_OFFSET];
   }
 
-  public void setLength(short len) {
+  public void reduceLength(short len) {
     assertWithinBounds(len, length());
     Util.setShort(heap, (short) (getBaseOffset() + 1), len);
   }

@@ -396,7 +396,7 @@ public class KMDecoder {
         index++;
       }
     }
-    KMArray.cast(vals).setLength(arrPos);
+    KMArray.cast(vals).reduceLength(arrPos);
     return KMKeyParameters.instance(vals);
   }
 

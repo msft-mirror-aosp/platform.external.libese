@@ -644,7 +644,7 @@ public class KMAsn1Parser {
     short len = KMByteBlob.cast(blob).length();
     if (0 == buffer[startOff] && len > 256) {
       KMByteBlob.cast(blob).setStartOff(++startOff);
-      KMByteBlob.cast(blob).setLength(--len);
+      KMByteBlob.cast(blob).reduceLength(--len);
     }
   }
 
