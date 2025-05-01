@@ -196,42 +196,159 @@ public class KMUtils {
     return len;
   }
 
-  // Divide the given input with the divisor and copy the remainder back to the
-  // input buffer from inputOff
+  /**
+   * Performs an unsigned binary division on a dividend stored in the {@code scratchpad} with the
+   * divisor stored in the {@code divisor}. This method calculates the quotient and replaces the
+   * dividend in the scratchpad with the resulting remainder.
+   *
+   * <p><b>Important:</b> This function should only be used when the resulting quotient is
+   * guaranteed to fit within a {@code short} (i.e., between 0 and 0x7FFF). Larger quotients will
+   * result in overflow.
+   *
+   * <p><b>Memory Requirement:</b> The {@code scratchPad} must have at least 40 bytes of available
+   * space starting at {@code dividendOff + 8} for internal calculations.
+   *
+   * @param scratchPad The buffer containing the dividend and providing working memory.
+   * @param dividendOff The start offset of the dividend within the {@code scratchPad}.
+   * @param divisor The buffer containing the divisor.
+   * @param offset The start offset of the divisor within the {@code divisor}.
+   * @return The resulting quotient as a {@code short}.
+   */
   private static short divideAndCopy(
-      byte[] scratchPad, short inputOff, byte[] divisor, short offset) {
-    short scratchPadOff = (short) (inputOff + 8);
-    Util.arrayCopyNonAtomic(divisor, offset, scratchPad, scratchPadOff, UINT8);
-    short q = divide(scratchPad, inputOff, scratchPadOff, (short) (scratchPadOff + 8));
+      byte[] scratchPad, short dividendOff, byte[] divisor, short offset) {
+    short divisorOff = (short) (dividendOff + 8);
+    short remainderOff = (short) (divisorOff + 8);
+    short quotientOff = (short) (remainderOff + 8);
+    short scratchOff = (short) (quotientOff + 8);
+    Util.arrayCopyNonAtomic(divisor, offset, scratchPad, divisorOff, UINT8);
+    divide(scratchPad, dividendOff, divisorOff, remainderOff, quotientOff, scratchOff);
+
+    short index = findFirstNonZeroByte(scratchPad, quotientOff, UINT8);
+
+    if ((UINT8 - index) > 2) {
+      KMException.throwIt(KMError.INVALID_ARGUMENT);
+    }
+    short q = Util.getShort(scratchPad, (short) (quotientOff + 6));
+    // This function does not support quotients greater than 0x7FFF
+    if (q < 0) {
+      KMException.throwIt(KMError.INVALID_ARGUMENT);
+    }
     if (q != 0) {
-      Util.arrayCopyNonAtomic(scratchPad, (short) (scratchPadOff + 8), scratchPad, inputOff, UINT8);
+      Util.arrayCopyNonAtomic(scratchPad, remainderOff, scratchPad, dividendOff, UINT8);
     }
     return q;
   }
 
-  // Use Euclid's formula: dividend = quotient*divisor + remainder
-  // i.e. dividend - quotient*divisor = remainder where remainder < divisor.
-  // so this is division by subtraction until remainder remains.
-  public static short divide(byte[] buf, short dividend, short divisor, short remainder) {
-    short expCnt = 1;
-    short q = 0;
+  /**
+   * Finds the index of the first non-zero byte in a buffer relative to the start of the search.
+   *
+   * @param buf The buffer to search.
+   * @param offset The starting position within {@code buf} to begin the search.
+   * @param len The number of bytes to examine.
+   * @return The relative index of the first non-zero byte, or {@code len} if all bytes are zero.
+   */
+  public static short findFirstNonZeroByte(byte[] buf, short offset, short len) {
+    short index = 0;
+    for (; index < len; index++) {
+      if (buf[(short) (offset + index)] != 0) {
+        return index;
+      }
+    }
+    return index;
+  }
+
+  /**
+   * Performs an unsigned binary division using the subtraction method (Euclidean division).
+   *
+   * <p>This method calculates {@code dividend = (quotient * divisor) + remainder}, where the {@code
+   * remainder < divisor}. The operation is performed using binary arithmetic.
+   *
+   * <p><b>Memory Requirement:</b> A total of 48 bytes of contiguous space is required within {@code
+   * buf}. This is allocated as follows:
+   *
+   * <ul>
+   *   <li><b>16 bytes</b> starting at {@code scratchOff} for internal calculations.
+   *   <li><b>16 bytes</b> for inputs: 8 bytes for dividend ({@code dividendOff}) and 8 bytes for
+   *       divisor ({@code divisorOff}).
+   *   <li><b>16 bytes</b> for outputs: 8 bytes for remainder ({@code remainderOff}) and 8 bytes for
+   *       quotient ({@code quotientOff}).
+   * </ul>
+   *
+   * @param buf The shared buffer containing all operands and working memory.
+   * @param dividendOff Input/Modifiable: Offset of the dividend within {@code buf}.
+   * @param divisorOff Input/Modifiable: Offset of the divisor within {@code buf}.
+   * @param remainderOff Output: Offset where the calculated remainder will be stored within {@code
+   *     buf}. Remainder will be right-aligned in the 8-byte buffer.
+   * @param quotientOff Output: Offset where the calculated quotient will be stored within {@code
+   *     buf}. Quotient will be right-aligned in the 8-byte buffer.
+   * @param scratchOff Internal: Start offset of the 16-byte scratch area.
+   */
+  public static void divide(
+      byte[] buf,
+      short dividendOff,
+      short divisorOff,
+      short remainderOff,
+      short quotientOff,
+      short scratchOff) {
+    if (isZero(buf, divisorOff)) {
+      KMException.throwIt(KMError.INVALID_ARGUMENT);
+    }
+
+    short expCntOff = scratchOff;
+    short tempOff = (short) (expCntOff + UINT8);
+    Util.arrayFillNonAtomic(buf, expCntOff, UINT8, (byte) 0);
+    // Set expCnt to 1 by writing the value to its least significant byte
+    buf[(short) (expCntOff + 7)] = 1;
+    Util.arrayFillNonAtomic(buf, quotientOff, UINT8, (byte) 0);
+    Util.arrayFillNonAtomic(buf, remainderOff, UINT8, (byte) 0);
+
     // first increase divisor so that it becomes greater then dividend.
-    while (compare(buf, divisor, dividend) < 0) {
-      shiftLeft(buf, divisor);
-      expCnt = (short) (expCnt << 1);
+    while (compare(buf, divisorOff, dividendOff) < 0) {
+      shiftLeft(buf, divisorOff);
+      shiftLeft(buf, expCntOff);
     }
     // Now subtract divisor from dividend if dividend is greater then divisor.
     // Copy remainder in the dividend and repeat.
-    while (expCnt != 0) {
-      if (compare(buf, dividend, divisor) >= 0) {
-        subtract(buf, dividend, divisor, remainder, (byte) 8);
-        copy(buf, remainder, dividend);
-        q = (short) (q + expCnt);
+    while (!isZero(buf, expCntOff)) {
+      if (compare(buf, dividendOff, divisorOff) >= 0) {
+        subtract(buf, dividendOff, divisorOff, remainderOff, UINT8);
+        copy(buf, remainderOff, dividendOff);
+        Util.arrayFillNonAtomic(buf, tempOff, UINT8, (byte) 0);
+        add(buf, quotientOff, expCntOff, tempOff);
+        Util.arrayCopyNonAtomic(buf, tempOff, buf, quotientOff, UINT8);
+      } else {
+        copy(buf, dividendOff, remainderOff);
       }
-      expCnt = (short) (expCnt >> 1);
-      shiftRight(buf, divisor);
+      shiftRight(buf, expCntOff);
+      shiftRight(buf, divisorOff);
     }
-    return q;
+  }
+
+  /**
+   * Checks if an 8-byte block in the provided buffer consists entirely of zeros.
+   *
+   * <p>This method inspects the range {@code [offset, offset + 8)} within the buffer. It verifies
+   * that every byte in this fixed-length sequence is {@code 0x00}.
+   *
+   * @param buf The buffer containing the data to be inspected.
+   * @param offset The starting position in the buffer for the 8-byte check.
+   * @return {@code true} if all 8 bytes starting at {@code offset} are zero; {@code false}
+   *     otherwise.
+   */
+  public static boolean isZero(byte[] buf, short offset) {
+    if (Util.getShort(buf, offset) != 0) {
+      return false;
+    }
+    if (Util.getShort(buf, (short) (offset + 2)) != 0) {
+      return false;
+    }
+    if (Util.getShort(buf, (short) (offset + 4)) != 0) {
+      return false;
+    }
+    if (Util.getShort(buf, (short) (offset + 6)) != 0) {
+      return false;
+    }
+    return true;
   }
 
   public static void copy(byte[] buf, short from, short to) {
@@ -333,13 +450,54 @@ public class KMUtils {
     }
   }
 
-  public static short countTemporalCount(
-      byte[] bufTime, short timeOff, short timeLen, byte[] scratchPad, short offset) {
-    Util.arrayFillNonAtomic(scratchPad, (short) offset, (short) 24, (byte) 0);
-    Util.arrayCopyNonAtomic(bufTime, timeOff, scratchPad, (short) (offset + 8 - timeLen), timeLen);
+  /**
+   * Calculates a temporal count by dividing the provided date time by the 30 days in milliseconds.
+   *
+   * <p>The resulting quotient is stored in the {@code scratchPad} starting at the provided {@code
+   * scratchPadOff}. The quotient will be right-aligned in the 8-byte buffer.
+   *
+   * <p><b>Memory Requirement:</b> A total of 48 bytes of contiguous space is required within {@code
+   * scratchPad} starting at {@code scratchPadOff}:
+   *
+   * <ul>
+   *   <li><b>32 bytes</b> for operand storage: 8 bytes each for dividend, divisor, remainder, and
+   *       quotient.
+   *   <li><b>16 bytes</b> for internal calculations and also to store the resulting quotient at
+   *       {@code scratchPadOff}
+   * </ul>
+   *
+   * @param dateTimeBuf Buffer containing the date time in milliseconds.
+   * @param dateTimeOff Starting offset of the date time within {@code dateTimeBuf}.
+   * @param dateTimeLen Length of the date time data.
+   * @param scratchPad Internal/Output: Buffer used for internal calculations and storing the
+   *     result.
+   * @param scratchPadOff Starting offset within {@code scratchPad} for both calculation workspace
+   *     and output storage. The resulting quotient is right-aligned and copied into the {@code
+   *     scratchPad} at {@code scratchPadOff}
+   */
+  public static void countTemporalCount(
+      byte[] dateTimeBuf,
+      short dateTimeOff,
+      short dateTimeLen,
+      byte[] scratchPad,
+      short scratchPadOff) {
+    short dividendOff = scratchPadOff;
+    short divisorOff = (short) (dividendOff + 8);
+    short remainderOff = (short) (divisorOff + 8);
+    short quotientOff = (short) (remainderOff + 8);
+
     Util.arrayCopyNonAtomic(
-        ThirtDaysMonthMsec, (short) 0, scratchPad, (short) (offset + 8), (short) 8);
-    return divide(scratchPad, (short) 0, (short) 8, (short) 16);
+        dateTimeBuf, dateTimeOff, scratchPad, (short) (dividendOff + 8 - dateTimeLen), dateTimeLen);
+    Util.arrayCopyNonAtomic(ThirtDaysMonthMsec, (short) 0, scratchPad, divisorOff, (short) 8);
+    divide(
+        scratchPad,
+        dividendOff,
+        divisorOff,
+        remainderOff,
+        quotientOff,
+        (short) (quotientOff + 8) /* scratchpad offset */);
+    // Copy the quotient to scratchPad from offset.
+    Util.arrayCopyNonAtomic(scratchPad, quotientOff, scratchPad, scratchPadOff, UINT8);
   }
 
   public static boolean isLeapYear(short year) {
