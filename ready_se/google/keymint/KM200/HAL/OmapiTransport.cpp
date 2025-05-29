@@ -23,11 +23,9 @@
 #include <unistd.h>
 #include <vector>
 
-#include <aidl/android/hardware/security/keymint/ErrorCode.h>
 #include <android-base/logging.h>
 
 namespace keymint::javacard {
-using ::aidl::android::hardware::security::keymint::ErrorCode;
 
 constexpr uint8_t KEYMINT_APPLET_AID[] = {0xA0, 0x00, 0x00, 0x00, 0x62, 0x03,
                                           0x02, 0x0C, 0x01, 0x01, 0x01};
@@ -46,7 +44,7 @@ keymaster_error_t OmapiTransport::initialize() {
 
     if (omapiSeService == nullptr) {
         LOG(ERROR) << "Failed to start omapiSeService null";
-        return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_NOT_YET_AVAILABLE);
+        return static_cast<keymaster_error_t>(KM_ERROR_HARDWARE_NOT_YET_AVAILABLE);
     }
 
     int size = sizeof(KEYMINT_APPLET_AID) / sizeof(KEYMINT_APPLET_AID[0]);
@@ -60,7 +58,7 @@ keymaster_error_t OmapiTransport::initialize() {
     auto status = omapiSeService->getReaders(&readers);
     if (!status.isOk()) {
         LOG(ERROR) << "getReaders failed to get available readers: " << status.getMessage();
-        return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_TYPE_UNAVAILABLE);
+        return static_cast<keymaster_error_t>(KM_ERROR_HARDWARE_TYPE_UNAVAILABLE);
     }
 
     // Get SE readers handlers
@@ -70,7 +68,7 @@ keymaster_error_t OmapiTransport::initialize() {
         if (!status.isOk()) {
             LOG(ERROR) << "getReader for " << readerName.c_str()
                        << " Failed: " << status.getMessage();
-            return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_TYPE_UNAVAILABLE);
+            return static_cast<keymaster_error_t>(KM_ERROR_HARDWARE_TYPE_UNAVAILABLE);
         }
         mVSReaders[readerName] = reader;
     }
@@ -90,7 +88,7 @@ keymaster_error_t OmapiTransport::initialize() {
 
     if (eSEReader == nullptr) {
         LOG(ERROR) << "secure element reader " << ESE_READER_PREFIX << " not found";
-        return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_TYPE_UNAVAILABLE);
+        return static_cast<keymaster_error_t>(KM_ERROR_HARDWARE_TYPE_UNAVAILABLE);
     }
 
     bool isSecureElementPresent = false;
@@ -98,12 +96,12 @@ keymaster_error_t OmapiTransport::initialize() {
     if (!res.isOk()) {
         eSEReader = nullptr;
         LOG(ERROR) << "isSecureElementPresent error: " << res.getMessage();
-        return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_TYPE_UNAVAILABLE);
+        return static_cast<keymaster_error_t>(KM_ERROR_HARDWARE_TYPE_UNAVAILABLE);
     }
     if (!isSecureElementPresent) {
         LOG(ERROR) << "secure element not found";
         eSEReader = nullptr;
-        return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_TYPE_UNAVAILABLE);
+        return static_cast<keymaster_error_t>(KM_ERROR_HARDWARE_TYPE_UNAVAILABLE);
     }
 
     status = eSEReader->openSession(&session);
@@ -147,7 +145,7 @@ bool OmapiTransport::internalTransmitApdu(
         res = session->isClosed(&result);
         if (!res.isOk()) {
             LOG(ERROR) << "isClosed error: " << res.getMessage();
-            return KM_ERROR_SECURE_HW_COMMUNICATION_FAILED;
+            return false;
         }
     }
     if (result) {
@@ -167,7 +165,7 @@ bool OmapiTransport::internalTransmitApdu(
         res = channel->isClosed(&result);
         if (!res.isOk()) {
             LOG(ERROR) << "isClosed error: " << res.getMessage();
-            return KM_ERROR_SECURE_HW_COMMUNICATION_FAILED;
+            return false;
         }
     }
 

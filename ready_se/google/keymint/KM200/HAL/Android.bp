@@ -81,28 +81,6 @@ cc_library {
         ".",
     ],
     shared_libs: [
-        "android.hardware.security.keymint-V2-ndk",
-        "libbinder",
-        "libbase",
-        "liblog",
-        "libbinder_ndk",
-        "android.se.omapi-V1-ndk",
-        "libhardware",
-    ],
-}
-
-cc_library {
-    name: "libjc_keymint_transport_V3",
-    vendor_available: true,
-    srcs: [
-        "SocketTransport.cpp",
-        "OmapiTransport.cpp",
-    ],
-    export_include_dirs: [
-        ".",
-    ],
-    shared_libs: [
-        "android.hardware.security.keymint-V3-ndk",
         "libbinder",
         "libbase",
         "liblog",

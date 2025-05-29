@@ -32,11 +32,55 @@ license {
     ],
 }
 
-cc_library {
-    name: "libjc_keymint3",
+cc_binary {
+    name: "android.hardware.security.keymint3-service.strongbox",
     defaults: [
-        "keymaster_defaults",
+        "jc_keymint_defaults",
+        "libjc_keymint_defaults",
     ],
+    init_rc: ["android.hardware.security.keymint3-service.strongbox.rc"],
+    vintf_fragment_modules: [
+        "android.hardware.security.keymint3-service.strongbox.xml",
+        "android.hardware.security.sharedsecret-service.strongbox3.xml",
+    ],
+    shared_libs: [
+        "android.hardware.security.keymint-V3-ndk",
+        "lib_android_keymaster_keymint_utils_V3",
+    ],
+    srcs: [
+        "KeyMint3Service.cpp",
+    ],
+    required: [
+        "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
+    ],
+}
+
+cc_binary {
+    name: "android.hardware.security.keymint4-service.strongbox",
+    init_rc: ["android.hardware.security.keymint4-service.strongbox.rc"],
+    vintf_fragment_modules: [
+        "android.hardware.security.keymint4-service.strongbox.xml",
+        "android.hardware.security.sharedsecret-service.strongbox4.xml",
+    ],
+    defaults: [
+        "jc_keymint_defaults",
+        "keymint_use_latest_hal_aidl_ndk_shared",
+        "libjc_keymint_defaults",
+    ],
+    shared_libs: [
+        "lib_android_keymaster_keymint_utils",
+    ],
+    srcs: [
+        "JavacardKeyMint4Device.cpp",
+        "KeyMint4Service.cpp",
+    ],
+    required: [
+        "android.hardware.hardware_keystore.jc-strongbox-keymint4.xml",
+    ],
+}
+
+cc_defaults {
+    name: "libjc_keymint_defaults",
     srcs: [
         "CborConverter.cpp",
         "JavacardKeyMintDevice.cpp",
@@ -48,63 +92,71 @@ cc_library {
     ],
     cflags: ["-O0"],
     shared_libs: [
-        "android.hardware.security.keymint-V3-ndk",
+        "android.hardware.security.rkp-V3-ndk",
         "android.hardware.security.secureclock-V1-ndk",
         "android.hardware.security.sharedsecret-V1-ndk",
-        "android.hardware.security.rkp-V3-ndk",
-        "lib_android_keymaster_keymint_utils_V3",
         "libbase",
+        "libbinder_ndk",
         "libcppbor",
-        "libkeymaster_portable",
-        "libkeymaster_messages",
-        "libsoft_attestation_cert",
-        "liblog",
         "libcrypto",
         "libcutils",
-        "libjc_keymint_transport_V3",
-        "libbinder_ndk",
+        "libjc_keymint_transport",
+        "libkeymaster_messages",
+        "libkeymaster_portable",
+        "liblog",
+        "libsoft_attestation_cert",
     ],
-    export_include_dirs: [
-        ".",
-    ],
-    vendor_available: true,
+    export_shared_lib_headers: ["libjc_keymint_transport"],
+    export_include_dirs: ["."],
 }
 
-cc_binary {
-    name: "android.hardware.security.keymint3-service.strongbox",
+cc_defaults {
+    name: "jc_keymint_defaults",
     relative_install_path: "hw",
-    init_rc: ["android.hardware.security.keymint3-service.strongbox.rc"],
-    vintf_fragments: [
-        "android.hardware.security.keymint3-service.strongbox.xml",
-        "android.hardware.security.sharedsecret3-service.strongbox.xml",
-    ],
     vendor: true,
     cflags: [
         "-Wall",
         "-Wextra",
     ],
     shared_libs: [
-        "android.hardware.security.keymint-V3-ndk",
-        "android.hardware.security.sharedsecret-V1-ndk",
-        "lib_android_keymaster_keymint_utils_V3",
-        "android.hardware.security.rkp-V3-ndk",
+        "android.se.omapi-V1-ndk",
         "libbase",
         "libbinder_ndk",
         "libcppbor",
         "libcrypto",
+        "libjc_keymint_transport",
         "libkeymaster_portable",
-        "libjc_keymint3",
-        "libjc_keymint_transport_V3",
         "liblog",
         "libutils",
-        "android.se.omapi-V1-ndk",
     ],
-    srcs: [
-        "service.cpp",
-    ],
-    required: [
-        "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
-    ],
+}
+
+// The following targets (and underlying XML files) declare specific
+// versions of KeyMint.  Vendors should use the version that matches the
+// version of the KeyMint HAL that the device implements.
+
+vintf_fragment {
+    name: "android.hardware.security.keymint4-service.strongbox.xml",
+    src: "android.hardware.security.keymint4-service.strongbox.xml",
+    vendor: true,
+}
+
+vintf_fragment {
+    name: "android.hardware.security.sharedsecret-service.strongbox4.xml",
+    src: "android.hardware.security.sharedsecret-service.strongbox4.xml",
+    vendor: true,
+}
+
+vintf_fragment {
+    name: "android.hardware.security.keymint3-service.strongbox.xml",
+    src: "android.hardware.security.keymint3-service.strongbox.xml",
+    vendor: true,
+}
+
+vintf_fragment {
+    name: "android.hardware.security.sharedsecret-service.strongbox3.xml",
+    src: "android.hardware.security.sharedsecret-service.strongbox3.xml",
+    vendor: true,
 }
 
 prebuilt_etc {
@@ -112,4 +164,11 @@ prebuilt_etc {
     sub_dir: "permissions",
     vendor: true,
     src: "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
+}
+
+prebuilt_etc {
+    name: "android.hardware.hardware_keystore.jc-strongbox-keymint4.xml",
+    sub_dir: "permissions",
+    vendor: true,
+    src: "android.hardware.hardware_keystore.jc-strongbox-keymint4.xml",
 }

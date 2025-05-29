@@ -16,12 +16,10 @@
 
 #pragma once
 
+#include "CborConverter.h"
 #include <ITransport.h>
 
-#include "CborConverter.h"
-
 #define APDU_CLS 0x80
-#define APDU_P1 0x60
 #define APDU_P2 0x00
 #define APDU_RESP_STATUS_OK 0x9000
 
@@ -74,12 +72,15 @@ enum class Instruction {
     INS_GET_ROT_CHALLENGE_CMD = KEYMINT_CMD_APDU_START + 45,
     INS_GET_ROT_DATA_CMD = KEYMINT_CMD_APDU_START + 46,
     INS_SEND_ROT_DATA_CMD = KEYMINT_CMD_APDU_START + 47,
+    // MODULE HASH
+    INS_SET_ADDITIONAL_ATTESTATION_INFO = KEYMINT_CMD_APDU_START + 48,
 };
 
 class JavacardSecureElement {
   public:
-    explicit JavacardSecureElement(shared_ptr<ITransport> transport)
-        : transport_(transport), isEarlyBootEndedPending(false), isDeleteAllKeysPending(false) {
+    explicit JavacardSecureElement(uint8_t p1, shared_ptr<ITransport> transport)
+        : p1_(p1), transport_(transport), isEarlyBootEndedPending(false),
+          isDeleteAllKeysPending(false) {
         transport_->openConnection();
     }
     virtual ~JavacardSecureElement() { transport_->closeConnection(); }
@@ -108,6 +109,7 @@ class JavacardSecureElement {
     }
 
   private:
+    uint8_t p1_;
     shared_ptr<ITransport> transport_;
     bool isEarlyBootEndedPending;
     bool isDeleteAllKeysPending;

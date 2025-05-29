@@ -75,7 +75,7 @@ keymaster_error_t JavacardSecureElement::constructApduMessage(Instruction& ins,
                                                               std::vector<uint8_t>& apduOut) {
     apduOut.push_back(static_cast<uint8_t>(APDU_CLS));  // CLS
     apduOut.push_back(static_cast<uint8_t>(ins));       // INS
-    apduOut.push_back(static_cast<uint8_t>(APDU_P1));   // P1
+    apduOut.push_back(p1_);                             // P1
     apduOut.push_back(static_cast<uint8_t>(APDU_P2));   // P2
 
     if (USHRT_MAX >= inputData.size()) {

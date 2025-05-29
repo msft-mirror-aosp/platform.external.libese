@@ -13,20 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#define LOG_TAG "javacard.keymint.device.strongbox-impl"
-
 #include "JavacardKeyMintDevice.h"
 
-#include <regex.h>
-
-#include <algorithm>
-#include <iostream>
-#include <iterator>
-#include <memory>
-#include <string>
-#include <vector>
-
+#include <JavacardKeyMintOperation.h>
 #include <KeyMintUtils.h>
 #include <android-base/logging.h>
 #include <android-base/properties.h>
@@ -34,11 +23,13 @@
 #include <keymaster/android_keymaster_messages.h>
 #include <keymaster/wrapped_key.h>
 
-#include "JavacardKeyMintOperation.h"
 #include "JavacardSharedSecret.h"
 
-namespace aidl::android::hardware::security::keymint {
-using cppbor::Bstr;
+namespace keymint::javacard {
+using aidl::android::hardware::security::keymint::BufferingMode;
+using aidl::android::hardware::security::keymint::JavacardKeyMintOperation;
+using aidl::android::hardware::security::keymint::Tag;
+namespace km_utils = ::aidl::android::hardware::security::keymint::km_utils;
 using cppbor::EncodedItem;
 using cppbor::Uint;
 using ::keymaster::AuthorizationSet;
@@ -49,10 +40,10 @@ using ::keymint::javacard::Instruction;
 using std::string;
 
 ScopedAStatus JavacardKeyMintDevice::defaultHwInfo(KeyMintHardwareInfo* info) {
-    info->versionNumber = 2;
+    info->versionNumber = version_;
     info->keyMintAuthorName = "Google";
     info->keyMintName = "JavacardKeymintDevice";
-    info->securityLevel = securitylevel_;
+    info->securityLevel = SecurityLevel::STRONGBOX;
     info->timestampTokenRequired = true;
     return ScopedAStatus::ok();
 }
@@ -64,11 +55,11 @@ ScopedAStatus JavacardKeyMintDevice::getHardwareInfo(KeyMintHardwareInfo* info) 
     std::optional<uint64_t> optSecLevel;
     std::optional<uint64_t> optVersion;
     std::optional<uint64_t> optTsRequired;
-    if (err != KM_ERROR_OK || !(optVersion = cbor_.getUint64(item, 1)) ||
-        !(optSecLevel = cbor_.getUint64(item, 2)) ||
+    if (err != KM_ERROR_OK || !(optVersion = CborConverter::getUint64AtPos(item, 1)) ||
+        !(optSecLevel = CborConverter::getUint64AtPos(item, 2)) ||
         !(optKeyMintName = cbor_.getByteArrayStr(item, 3)) ||
         !(optKeyMintAuthorName = cbor_.getByteArrayStr(item, 4)) ||
-        !(optTsRequired = cbor_.getUint64(item, 5))) {
+        !(optTsRequired = CborConverter::getUint64AtPos(item, 5))) {
         LOG(ERROR) << "Error in response of getHardwareInfo.";
         LOG(INFO) << "Returning defaultHwInfo in getHardwareInfo.";
         return defaultHwInfo(info);
@@ -314,9 +305,9 @@ ScopedAStatus JavacardKeyMintDevice::begin(KeyPurpose purpose, const std::vector
     }
     // return the result
     auto keyParams = cbor_.getKeyParameters(item, 1);
-    auto optOpHandle = cbor_.getUint64(item, 2);
-    auto optBufMode = cbor_.getUint64(item, 3);
-    auto optMacLength = cbor_.getUint64(item, 4);
+    auto optOpHandle = CborConverter::getUint64AtPos(item, 2);
+    auto optBufMode = CborConverter::getUint64AtPos(item, 3);
+    auto optMacLength = CborConverter::getUint64AtPos(item, 4);
 
     if (!keyParams || !optOpHandle || !optBufMode || !optMacLength) {
         LOG(ERROR) << "Error in decoding the response in begin.";
@@ -451,4 +442,19 @@ ScopedAStatus JavacardKeyMintDevice::sendRootOfTrust(const vector<uint8_t>& root
     return ScopedAStatus::ok();
 }
 
-}  // namespace aidl::android::hardware::security::keymint
+ScopedAStatus
+JavacardKeyMintDevice::setAdditionalAttestationInfo(const vector<KeyParameter>& keyParams) {
+    if (!keyParams.empty()) {
+        cppbor::Array request;
+        cbor_.addKeyparameters(request, keyParams);
+        auto [item, err] =
+            card_->sendRequest(Instruction::INS_SET_ADDITIONAL_ATTESTATION_INFO, request);
+        if (err != KM_ERROR_OK) {
+            LOG(ERROR) << "Error in sending in setAdditionalAttestationInfo.";
+            return km_utils::kmError2ScopedAStatus(err);
+        }
+        LOG(INFO) << "JavacardKeyMint::setAdditionalAttestationInfo success";
+    }
+    return ScopedAStatus::ok();
+}
+}  // namespace keymint::javacard
