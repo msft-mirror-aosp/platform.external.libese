@@ -37,7 +37,7 @@ import javacardx.apdu.ExtendedLength;
  * other install time objects. It also implements the keymaster state machine and handles javacard
  * applet life cycle events.
  */
-public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLength {
+public abstract class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLength {
 
   // Constants.
   // Represents RSA_PUBLIC_EXPONENT value 65537.
@@ -182,8 +182,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   public static final short PROVISION_STATUS_SE_LOCKED = 0x0100;
   public static final short PROVISION_STATUS_OEM_PUBLIC_KEY = 0x0200;
   public static final short PROVISION_STATUS_SECURE_BOOT_MODE = 0x0400;
-  // This is the P1P2 constant of the APDU command header.
-  protected static final short KM_HAL_VERSION = (short) 0x6000;
+
   // OEM lock / unlock verification constants.
   // This is the verification label to authenticate the OEM to lock the provisioning for the
   // OEM provision commands.
@@ -295,7 +294,9 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   private static final byte INS_GET_ROT_CHALLENGE_CMD = KEYMINT_CMD_APDU_START + 45; // 0x4D
   private static final byte INS_GET_ROT_DATA_CMD = KEYMINT_CMD_APDU_START + 46; // 0x4E
   private static final byte INS_SEND_ROT_DATA_CMD = KEYMINT_CMD_APDU_START + 47; // 0x4F
-  private static final byte KEYMINT_CMD_APDU_END = KEYMINT_CMD_APDU_START + 48; // 0x50
+  public static final short INS_SET_ADDITIONAL_ATTESTATION_INFO =
+      KEYMINT_CMD_APDU_START + 48; // 0x50
+  private static final byte KEYMINT_CMD_APDU_END = KEYMINT_CMD_APDU_START + 49; // 0x51
   private static final byte INS_END_KM_CMD = 0x7F;
   // Instruction values from 0xCD to 0xFF are completely reserved for Vendors to use and
   // will never be used by the base line code in future.
@@ -1352,7 +1353,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         case INS_GET_DICE_CERT_CHAIN_CMD:
           rkp.process(apduIns, apdu);
           break;
-          // KeyMint 2.0
+        // KeyMint 2.0
         case INS_GET_ROT_CHALLENGE_CMD:
           processGetRootOfTrustChallenge(apdu);
           break;
@@ -1530,7 +1531,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   // 1. boot parameters are set,
   // 2. system properties are set and
   // 3. computed the shared secret successfully.
-  private boolean isKeyMintReady(byte apduIns) {
+  protected boolean isKeyMintReady(byte apduIns) {
     if (kmDataStore.isDeviceReady()) {
       return true;
     }
@@ -1711,12 +1712,11 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
 
   private void processGetHwInfoCmd(APDU apdu) {
     // No arguments expected
-    final byte version = 3;
     // Make the response
     short respPtr = KMArray.instance((short) 6);
     KMArray resp = KMArray.cast(respPtr);
     resp.add((short) 0, KMInteger.uint_16(KMError.OK));
-    resp.add((short) 1, KMInteger.uint_8(version));
+    resp.add((short) 1, KMInteger.uint_16(getPackageVersion()));
     resp.add((short) 2, KMEnum.instance(KMType.HARDWARE_TYPE, KMType.STRONGBOX));
     resp.add(
         (short) 3,
@@ -2276,11 +2276,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
     data[IMPORTED_KEY_BLOB] =
         aesGCMDecrypt(
-            getWrappingKey(),
-            data[INPUT_DATA],
-            data[NONCE],
-            data[AUTH_DATA],
-            data[AUTH_TAG]);
+            getWrappingKey(), data[INPUT_DATA], data[NONCE], data[AUTH_DATA], data[AUTH_TAG]);
     resetWrappingKey();
     // Step 5 - Import decrypted key
     data[ORIGIN] = KMType.SECURELY_IMPORTED;
@@ -2292,7 +2288,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   private KMAttestationCert makeCommonCert(byte[] scratchPad) {
     short alg = KMKeyParameters.findTag(KMType.ENUM_TAG, KMType.ALGORITHM, data[KEY_PARAMETERS]);
     boolean rsaCert = KMEnumTag.cast(alg).getValue() == KMType.RSA;
-    KMAttestationCert cert = KMAttestationCertImpl.instance(rsaCert, seProvider);
+    KMAttestationCert cert =
+        KMAttestationCertImpl.instance(rsaCert, halVersion(), attestVersion(), seProvider);
 
     short subject =
         KMKeyParameters.findTag(
@@ -2341,20 +2338,21 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
 
   private short getCertificateValidityDate(short tag, byte[] scratchpad) {
     short error = KMError.UNKNOWN_ERROR;
-    switch(tag) {
-    case KMType.CERTIFICATE_NOT_AFTER:
-      error = KMError.MISSING_NOT_AFTER;
-      Util.arrayCopyNonAtomic(dec319999Ms, (short) 0, scratchpad, (short) 0, (short) dec319999Ms.length);
-      break;
-    case KMType.CERTIFICATE_NOT_BEFORE:
-      error = KMError.MISSING_NOT_BEFORE;
-      Util.arrayFillNonAtomic(scratchpad, (short) 0, (short) 8, (byte) 0);
-      break;
+    switch (tag) {
+      case KMType.CERTIFICATE_NOT_AFTER:
+        error = KMError.MISSING_NOT_AFTER;
+        Util.arrayCopyNonAtomic(
+            dec319999Ms, (short) 0, scratchpad, (short) 0, (short) dec319999Ms.length);
+        break;
+      case KMType.CERTIFICATE_NOT_BEFORE:
+        error = KMError.MISSING_NOT_BEFORE;
+        Util.arrayFillNonAtomic(scratchpad, (short) 0, (short) 8, (byte) 0);
+        break;
       default:
         KMException.throwIt(KMError.INVALID_TAG);
     }
     short datePtr = KMKeyParameters.findTag(KMType.DATE_TAG, tag, data[KEY_PARAMETERS]);
-    if (datePtr == KMType.INVALID_VALUE ) {
+    if (datePtr == KMType.INVALID_VALUE) {
       if (data[ORIGIN] == KMType.SECURELY_IMPORTED) {
         return KMInteger.instance(scratchpad, (short) 0, (short) 8);
       }
@@ -2442,6 +2440,12 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
       KMException.throwIt(KMError.ATTESTATION_APPLICATION_ID_MISSING);
     }
     cert.extensionTag(attAppId, false);
+    short moduleHashLen = kmDataStore.getModuleHash(scratchPad, (short) 0);
+    if (moduleHashLen != 0) {
+      short moduleHash = KMByteBlob.instance(scratchPad, (short) 0, moduleHashLen);
+      short moduleHashTag = KMByteTag.instance(KMType.MODULE_HASH, moduleHash);
+      cert.extensionTag(moduleHashTag, false);
+    }
     // unique id byte blob - uses application id and temporal month count of
     // creation time.
     attAppId = KMByteTag.cast(attAppId).getValue();
@@ -4537,7 +4541,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
       KMException.throwIt(KMError.UNSUPPORTED_TAG);
     }
 
-
     short attKeyPurpose =
         KMKeyParameters.findTag(KMType.ENUM_ARRAY_TAG, KMType.PURPOSE, data[KEY_PARAMETERS]);
     // ATTEST_KEY cannot be combined with any other purpose.
@@ -5025,4 +5028,24 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     }
     return true;
   }
+
+  /*
+   * Returns the current package version.
+   */
+  protected abstract short getPackageVersion();
+
+  /*
+   * Returns the expected P1 and P2 parameters as short.
+   */
+  protected abstract short getP1P2();
+
+  /*
+   * Returns the current KeyMint HAL Version.
+   */
+  protected abstract short halVersion();
+
+  /*
+   * Returns the current KeyMint Attestation Version.
+   */
+  protected abstract short attestVersion();
 }

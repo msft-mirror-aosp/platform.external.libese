@@ -77,36 +77,39 @@ public class KMByteTag extends KMTag {
     short valueLen = KMByteBlob.cast(byteBlob).length();
     short expectedLen = 0;
     switch (key) {
-    case ATTESTATION_APPLICATION_ID:
-      expectedLen = MAX_ATTESTATION_APP_ID_SIZE;
-      break;
-    case CERTIFICATE_SUBJECT_NAME:
-      expectedLen = KMConfigurations.MAX_SUBJECT_DER_LEN;
-      break;
-    case APPLICATION_ID:
-    case APPLICATION_DATA:
-      expectedLen = MAX_APP_ID_APP_DATA_SIZE;
-      break;
-    case ATTESTATION_CHALLENGE:
-      expectedLen = MAX_ATTESTATION_CHALLENGE_SIZE;
-      break;
-    case ATTESTATION_ID_BRAND:
-    case ATTESTATION_ID_DEVICE:
-    case ATTESTATION_ID_PRODUCT:
-    case ATTESTATION_ID_SERIAL:
-    case ATTESTATION_ID_IMEI:
-    case ATTESTATION_ID_SECOND_IMEI:
-    case ATTESTATION_ID_MEID:
-    case ATTESTATION_ID_MANUFACTURER:
-    case ATTESTATION_ID_MODEL:
-      expectedLen = KMConfigurations.MAX_ATTESTATION_IDS_SIZE;
-      break;
-    case NONCE:
-      // Nonce validation occurs during the begin operation, as its validation relies
-      // on other TAGs.
-      return true;
-    default:
-      return false;
+      case ATTESTATION_APPLICATION_ID:
+        expectedLen = MAX_ATTESTATION_APP_ID_SIZE;
+        break;
+      case CERTIFICATE_SUBJECT_NAME:
+        expectedLen = KMConfigurations.MAX_SUBJECT_DER_LEN;
+        break;
+      case APPLICATION_ID:
+      case APPLICATION_DATA:
+        expectedLen = MAX_APP_ID_APP_DATA_SIZE;
+        break;
+      case ATTESTATION_CHALLENGE:
+        expectedLen = MAX_ATTESTATION_CHALLENGE_SIZE;
+        break;
+      case ATTESTATION_ID_BRAND:
+      case ATTESTATION_ID_DEVICE:
+      case ATTESTATION_ID_PRODUCT:
+      case ATTESTATION_ID_SERIAL:
+      case ATTESTATION_ID_IMEI:
+      case ATTESTATION_ID_SECOND_IMEI:
+      case ATTESTATION_ID_MEID:
+      case ATTESTATION_ID_MANUFACTURER:
+      case ATTESTATION_ID_MODEL:
+        expectedLen = KMConfigurations.MAX_ATTESTATION_IDS_SIZE;
+        break;
+      case NONCE:
+        // Nonce validation occurs during the begin operation, as its validation relies
+        // on other TAGs.
+        return true;
+      case MODULE_HASH:
+        expectedLen = MODULE_HASH_SIZE;
+        break;
+      default:
+        return false;
     }
     KMTag.assertLE(valueLen, expectedLen, KMError.INVALID_INPUT_LENGTH);
     if (key == CERTIFICATE_SUBJECT_NAME) {

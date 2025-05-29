@@ -17,6 +17,7 @@ package com.android.javacard.keymaster;
 
 import com.android.javacard.seprovider.KMAndroidSEProvider;
 import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.APDU;
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
@@ -32,7 +33,7 @@ import org.globalplatform.upgrade.UpgradeManager;
  * the provision commands are processed here and later the data is handed over to the KMDataStore
  * class which stores the data in the flash memory.
  */
-public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeListener {
+public abstract class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeListener {
   // Magic number version stored along with provisioned data. This is used to differentiate
   // between data before and after the magic number is used.
   private static final byte KM_MAGIC_NUMBER = (byte) 0x82;
@@ -69,33 +70,20 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
   // The length of the provisioned pre shared key.
   public static final byte SHARED_SECRET_KEY_SIZE = 32;
 
-  // Version of the database which is used to differentiate between different version of the
-  // database.
-  protected short packageVersion;
-
-  KMAndroidSEApplet() {
-    super(new KMAndroidSEProvider());
-    packageVersion = KM_APPLET_PACKAGE_VERSION;
-  }
-
-  /**
-   * Installs this applet.
-   *
-   * @param bArray the array containing installation parameters
-   * @param bOffset the starting offset in bArray
-   * @param bLength the length in bytes of the parameter data in bArray
-   */
-  public static void install(byte[] bArray, short bOffset, byte bLength) {
-    new KMAndroidSEApplet().register(bArray, (short) (bOffset + 1), bArray[bOffset]);
+  protected KMAndroidSEApplet(KMSEProvider seImpl) {
+    super(seImpl);
   }
 
   public void handleDeviceBooted() {
     if (seProvider.isBootSignalEventSupported() && seProvider.isDeviceRebooted()) {
+      actionBeforeDeviceBooted();
       kmDataStore.clearDeviceBootStatus();
       super.reboot();
       seProvider.clearDeviceBooted(true);
     }
   }
+
+  protected void actionBeforeDeviceBooted() {}
 
   @Override
   public void updateApduStatusFlags(short apduIns) {
@@ -180,7 +168,9 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
             break;
 
           default:
-            super.process(apdu);
+            if (!handleAddtionalApdu(apdu)) {
+              super.process(apdu);
+            }
             break;
         }
       } else {
@@ -199,7 +189,11 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
     }
   }
 
-  private boolean isCommandAllowed(short apduIns) {
+  protected boolean handleAddtionalApdu(APDU apdu) {
+    return false;
+  }
+
+  protected boolean isCommandAllowed(short apduIns) {
     boolean result = true;
     switch (apduIns) {
       case INS_PROVISION_ATTEST_IDS_CMD:
@@ -566,7 +560,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
   private boolean isUpgradeAllowed(short oldVersion) {
     boolean upgradeAllowed = false;
     // Downgrade of the Applet is not allowed.
-    if (KM_APPLET_PACKAGE_VERSION >= oldVersion) {
+    if (getPackageVersion() >= oldVersion) {
       upgradeAllowed = true;
     }
     return upgradeAllowed;
@@ -597,12 +591,12 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
         UpgradeManager.createElement(Element.TYPE_SIMPLE, primitiveCount, objectCount);
 
     element.write(KM_MAGIC_NUMBER);
-    element.write(packageVersion);
+    element.write(getPackageVersion());
     kmDataStore.onSave(element);
     return element;
   }
 
-  private short validateApdu(APDU apdu) {
+  protected short validateApdu(APDU apdu) {
     // Read the apdu header and buffer.
     byte[] apduBuffer = apdu.getBuffer();
     short P1P2 = Util.getShort(apduBuffer, ISO7816.OFFSET_P1);
@@ -613,7 +607,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
     }
 
     // Validate P1P2.
-    if (P1P2 != KMKeymasterApplet.KM_HAL_VERSION) {
+    if (P1P2 != getP1P2()) {
       sendResponse(apdu, KMError.INVALID_P1P2);
       return KMType.INVALID_VALUE;
     }

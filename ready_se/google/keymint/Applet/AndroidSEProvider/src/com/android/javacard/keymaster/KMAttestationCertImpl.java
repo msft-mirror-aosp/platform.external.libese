@@ -84,6 +84,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   // Below are the allowed softwareEnforced Authorization tags inside the attestation certificate's
   // extension.
   private static final short[] swTagIds = {
+    KMType.MODULE_HASH,
     KMType.ATTESTATION_APPLICATION_ID,
     KMType.CREATION_DATETIME,
     KMType.ALLOW_WHILE_ON_BODY,
@@ -133,10 +134,6 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   private static final byte keyUsageDataEncipher = (byte) 0x10; // 3rd- bit
   private static final byte keyUsageKeyAgreement = (byte) 0x08; // 4th- bit
   private static final byte keyUsageCertSign = (byte) 0x04; // 5th- bit
-  // KeyMint HAL Version constant.
-  private static final short KEYMINT_VERSION = 300;
-  // Attestation version constant.
-  private static final short ATTESTATION_VERSION = 300;
   // The X.509 version as per rfc5280#section-4.1.2.1
   private static final byte X509_VERSION = (byte) 0x02;
 
@@ -185,10 +182,15 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   private static short[] hwParams;
   // The maximum size of the serial number.
   private static final byte SERIAL_NUM_MAX_LEN = 20;
+  // KeyMint Verison
+  private static short kmVersion;
+  // Attestation Version
+  private static short attestVersion;
 
   private KMAttestationCertImpl() {}
 
-  public static KMAttestationCert instance(boolean rsaCert, KMSEProvider provider) {
+  public static KMAttestationCert instance(
+      boolean rsaCert, short keymintVersion, short attestationVersion, KMSEProvider provider) {
     if (inst == null) {
       inst = new KMAttestationCertImpl();
       seProvider = provider;
@@ -198,6 +200,9 @@ public class KMAttestationCertImpl implements KMAttestationCert {
       states = JCSystem.makeTransientByteArray(NUM_STATE_ENTRIES, JCSystem.CLEAR_ON_RESET);
       swParams = JCSystem.makeTransientShortArray(MAX_PARAMS, JCSystem.CLEAR_ON_RESET);
       hwParams = JCSystem.makeTransientShortArray(MAX_PARAMS, JCSystem.CLEAR_ON_RESET);
+
+      kmVersion = keymintVersion;
+      attestVersion = attestationVersion;
     }
     init(rsaCert);
     return inst;
@@ -319,13 +324,13 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     short len = KMEnumArrayTag.cast(tag).length();
     byte index = 0;
     while (index < len) {
-      if (KMEnumArrayTag.cast(tag).get(index) == KMType.SIGN ||
-          KMEnumArrayTag.cast(tag).get(index) == KMType.VERIFY) {
+      if (KMEnumArrayTag.cast(tag).get(index) == KMType.SIGN
+          || KMEnumArrayTag.cast(tag).get(index) == KMType.VERIFY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageSign);
       } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.WRAP_KEY) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyEncipher);
-      } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.DECRYPT ||
-          KMEnumArrayTag.cast(tag).get(index) == KMType.ENCRYPT) {
+      } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.DECRYPT
+          || KMEnumArrayTag.cast(tag).get(index) == KMType.ENCRYPT) {
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageKeyEncipher);
         states[KEY_USAGE] = (byte) (states[KEY_USAGE] | keyUsageDataEncipher);
       } else if (KMEnumArrayTag.cast(tag).get(index) == KMType.AGREE_KEY) {
@@ -508,10 +513,10 @@ public class KMAttestationCertImpl implements KMAttestationCert {
         KMByteBlob.cast(indexes[ATT_CHALLENGE]).getStartOff(),
         KMByteBlob.cast(indexes[ATT_CHALLENGE]).length());
     pushEnumerated(KMType.STRONGBOX);
-    pushShort(KEYMINT_VERSION);
+    pushShort(kmVersion);
     pushIntegerHeader((short) 2);
     pushEnumerated(KMType.STRONGBOX);
-    pushShort(ATTESTATION_VERSION);
+    pushShort(attestVersion);
     pushIntegerHeader((short) 2);
     pushSequenceHeader((short) (last - indexes[STACK_PTR]));
     pushOctetStringHeader((short) (last - indexes[STACK_PTR]));

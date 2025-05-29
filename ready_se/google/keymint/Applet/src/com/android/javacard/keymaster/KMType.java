@@ -302,6 +302,8 @@ public abstract class KMType {
   public static final short CERTIFICATE_SERIAL_NUM = (short) 0x03EE;
   // Subject Name
   public static final short CERTIFICATE_SUBJECT_NAME = (short) 0x03EF;
+  // Module Hash
+  public static final short MODULE_HASH = (short) 0x02D4;
 
   public static final byte NO_VALUE = (byte) 0xff;
   // Support Curves for Eek Chain validation.
@@ -362,6 +364,8 @@ public abstract class KMType {
   public static final byte MAX_CERTIFICATE_SERIAL_SIZE = 20;
   // Attestation Application ID
   public static final short MAX_ATTESTATION_APP_ID_SIZE = 1024;
+  // Max Module hash size
+  public static final short MODULE_HASH_SIZE = 32;
   // Instance table
   public static final byte INSTANCE_TABLE_SIZE = 30;
   protected static final byte TLV_HEADER_SIZE = 3;

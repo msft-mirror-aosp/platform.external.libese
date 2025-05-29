@@ -79,6 +79,7 @@ public class KMError {
   public static final short MISSING_NOT_AFTER = 81;
   public static final short MISSING_ISSUER_SUBJECT_NAME = 82;
   public static final short INVALID_ISSUER_SUBJECT_NAME = 83;
+  public static final short MODULE_HASH_ALREADY_SET = 86;
 
   public static final short UNIMPLEMENTED = 100;
   public static final short UNKNOWN_ERROR = 1000;

@@ -90,6 +90,8 @@ public class KMKeymintDataStore implements KMUpgradable {
   private short bootState;
   // Challenge for Root of trust
   private byte[] challenge;
+  // module hash
+  private byte[] moduleHash;
 
   /*
    * Applets upgrading to KeyMint3.0 may not have the second imei provisioned.
@@ -124,6 +126,11 @@ public class KMKeymintDataStore implements KMUpgradable {
     }
     setDeviceLockPasswordOnly(false);
     setDeviceLock(false);
+    // Allocate MODULE_HASH_SIZE + 1 bytes. Actual module
+    // hash length is stored in the first byte. The first byte
+    // indicates whether the value has been set.
+    moduleHash = new byte[(short) (KMType.MODULE_HASH_SIZE + 1)];
+    moduleHash[0] = (short) 0;
     kmDataStore = this;
   }
 
@@ -625,39 +632,39 @@ public class KMKeymintDataStore implements KMUpgradable {
   public short getAttestationId(short tag, byte[] buffer, short start) {
     byte[] attestId = null;
     switch (tag) {
-        // Attestation Id Brand
+      // Attestation Id Brand
       case KMType.ATTESTATION_ID_BRAND:
         attestId = attIdBrand;
         break;
-        // Attestation Id Device
+      // Attestation Id Device
       case KMType.ATTESTATION_ID_DEVICE:
         attestId = attIdDevice;
         break;
-        // Attestation Id Product
+      // Attestation Id Product
       case KMType.ATTESTATION_ID_PRODUCT:
         attestId = attIdProduct;
         break;
-        // Attestation Id Serial
+      // Attestation Id Serial
       case KMType.ATTESTATION_ID_SERIAL:
         attestId = attIdSerial;
         break;
-        // Attestation Id IMEI
+      // Attestation Id IMEI
       case KMType.ATTESTATION_ID_IMEI:
         attestId = attIdImei;
         break;
-        // Attestation Id SECOND IMEI
+      // Attestation Id SECOND IMEI
       case KMType.ATTESTATION_ID_SECOND_IMEI:
         attestId = attIdSecondImei;
         break;
-        // Attestation Id MEID
+      // Attestation Id MEID
       case KMType.ATTESTATION_ID_MEID:
         attestId = attIdMeId;
         break;
-        // Attestation Id Manufacturer
+      // Attestation Id Manufacturer
       case KMType.ATTESTATION_ID_MANUFACTURER:
         attestId = attIdManufacturer;
         break;
-        // Attestation Id Model
+      // Attestation Id Model
       case KMType.ATTESTATION_ID_MODEL:
         attestId = attIdModel;
         break;
@@ -677,63 +684,63 @@ public class KMKeymintDataStore implements KMUpgradable {
 
   public void setAttestationId(short tag, byte[] buffer, short start, short length) {
     switch (tag) {
-        // Attestation Id Brand
+      // Attestation Id Brand
       case KMType.ATTESTATION_ID_BRAND:
         JCSystem.beginTransaction();
         attIdBrand = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdBrand, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id Device
+      // Attestation Id Device
       case KMType.ATTESTATION_ID_DEVICE:
         JCSystem.beginTransaction();
         attIdDevice = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdDevice, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id Product
+      // Attestation Id Product
       case KMType.ATTESTATION_ID_PRODUCT:
         JCSystem.beginTransaction();
         attIdProduct = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdProduct, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id Serial
+      // Attestation Id Serial
       case KMType.ATTESTATION_ID_SERIAL:
         JCSystem.beginTransaction();
         attIdSerial = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdSerial, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id IMEI
+      // Attestation Id IMEI
       case KMType.ATTESTATION_ID_IMEI:
         JCSystem.beginTransaction();
         attIdImei = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdImei, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id SECOND IMEI
+      // Attestation Id SECOND IMEI
       case KMType.ATTESTATION_ID_SECOND_IMEI:
         JCSystem.beginTransaction();
         attIdSecondImei = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdSecondImei, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id MEID
+      // Attestation Id MEID
       case KMType.ATTESTATION_ID_MEID:
         JCSystem.beginTransaction();
         attIdMeId = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdMeId, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id Manufacturer
+      // Attestation Id Manufacturer
       case KMType.ATTESTATION_ID_MANUFACTURER:
         JCSystem.beginTransaction();
         attIdManufacturer = new byte[length];
         Util.arrayCopyNonAtomic(buffer, (short) start, attIdManufacturer, (short) 0, length);
         JCSystem.commitTransaction();
         break;
-        // Attestation Id Model
+      // Attestation Id Model
       case KMType.ATTESTATION_ID_MODEL:
         JCSystem.beginTransaction();
         attIdModel = new byte[length];
@@ -882,6 +889,25 @@ public class KMKeymintDataStore implements KMUpgradable {
       KMException.throwIt(KMError.INVALID_DATA);
     }
     return oemRootPublicKey;
+  }
+
+  public void setModuleHash(byte[] buf, short start, short length) {
+    if (buf == null || length != KMType.MODULE_HASH_SIZE) {
+      KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
+    }
+    JCSystem.beginTransaction();
+    moduleHash[(short) 0] = KMType.MODULE_HASH_SIZE;
+    Util.arrayCopyNonAtomic(buf, start, moduleHash, (short) 1, length);
+    JCSystem.commitTransaction();
+  }
+
+  public short getModuleHash(byte[] buffer, short start) {
+    Util.arrayCopyNonAtomic(moduleHash, (short) 1, buffer, start, moduleHash[0]);
+    return moduleHash[0];
+  }
+
+  public void clearModuleHash() {
+    Util.arrayFill(moduleHash, (short) 0, (short) moduleHash.length, (byte) 0);
   }
 
   @Override

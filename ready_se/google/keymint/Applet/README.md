@@ -10,6 +10,7 @@ which mediates between Android Keystore and this applet.
   - Keymint 3.0 supported functions for required VTS compliance.
   - SharedSecret 1.0 supported functions for required VTS compliance.
   - RemotelyProvisionedComponent 3.0 supported functions for required VTS compliance.
+  - Keymint 4.0 supported functions for required VTS compliance.
 
 # Not supported features
   - Factory provisioned attestation key will not be supported in this applet.
