@@ -15,6 +15,7 @@
  */
 package com.android.javacard.seprovider;
 
+import javacard.framework.APDU;
 import org.globalplatform.upgrade.Element;
 
 /**
@@ -338,9 +339,7 @@ public interface KMSEProvider {
   /**
    * This is a oneshot operation that verifies the signature using hmac algorithm.
    *
-   * @param keyBuf is the buffer with hmac key.
-   * @param keyStart is the start of the buffer.
-   * @param keyLength is the length of the buffer which will be in bytes from 8 to 64.
+   * @param hmacKey is the instance of the  HMac key.
    * @param data is the buffer containing data.
    * @param dataStart is the start of the data.
    * @param dataLength is the length of the data.
@@ -471,7 +470,7 @@ public interface KMSEProvider {
   /**
    * This is a oneshot operation that signs the data using device unique key.
    *
-   * @param ecPrivKey instance of KMECDeviceUniqueKey to sign the input data.
+   * @param deviceUniqueKey instance of KMECDeviceUniqueKey to sign the input data.
    * @param inputDataBuf is the buffer of the input data.
    * @param inputDataStart is the start of the input data buffer.
    * @param inputDataLength is the length of the input data buffer in bytes.
@@ -594,9 +593,7 @@ public interface KMSEProvider {
    * @param padding is KMType.PADDING_NONE or KMType.PKCS7 (in case of AES and DES).
    * @param blockMode is KMType.CTR, KMType.GCM. KMType.CBC or KMType.ECB for AES or DES else it is
    *     0.
-   * @param keyBuf is aes, des or hmac key buffer.
-   * @param keyStart is the start of the key buffer.
-   * @param keyLength is the length of the key buffer.
+   * @param ecPrivKey is AES, DES or HMac key object.
    * @param ivBuf is the iv buffer (in case on AES and DES algorithm without ECB mode)
    * @param ivStart is the start of the iv buffer.
    * @param ivLength is the length of the iv buffer. It will be zero in case of HMAC and AES/DES
@@ -663,7 +660,7 @@ public interface KMSEProvider {
    * generated key is maintained by the SEProvider. This function should be called only once at the
    * time of installation.
    *
-   * @param instance of the masterkey.
+   * @param masterKey instance of the masterKey.
    * @param keySizeBits key size in bits.
    * @return An instance of KMMasterKey.
    */
@@ -691,7 +688,7 @@ public interface KMSEProvider {
   /**
    * Creates an ECKey instance and sets the public and private keys to it.
    *
-   * @param testMode to indicate if current execution is for test or production.
+   * @param key instance of the device unique key.
    * @param pubKey buffer containing the public key.
    * @param pubKeyOff public key buffer start offset.
    * @param pubKeyLen public key buffer length.
@@ -777,4 +774,20 @@ public interface KMSEProvider {
    * @return An instance of the KMRkpMacKey.
    */
   KMKey createRkpMacKey(KMKey createComputedHmacKey, byte[] keyData, short offset, short length);
+
+  /**
+   * Checks if a card reset has occurred since the last APDU command was processed.
+   *
+   * @return {@code true} if a power-on or card reset event has occurred, {@code false} otherwise.
+   */
+  boolean isPowerReset();
+
+  /**
+   * Validates the CLA byte of the incoming APDU command.
+   *
+   * @param apdu The APDU object received from the CAD.
+   * @return {@code true} if the CLA byte is valid, {@code false} otherwise.
+   */
+  boolean isValidCLA(APDU apdu);
+
 }

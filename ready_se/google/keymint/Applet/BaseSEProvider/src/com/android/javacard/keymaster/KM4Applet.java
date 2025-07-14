@@ -15,9 +15,7 @@
  */
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMAndroidSEProvider;
 import com.android.javacard.seprovider.KMException;
-import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.APDU;
 import javacard.framework.ISO7816;
 import javacard.framework.Util;
@@ -31,13 +29,31 @@ public class KM4Applet extends KMAndroidSEApplet {
   private static final short KM_VERSION = 400;
   private static final short ATTEST_VERSION = 400;
 
-  protected KM4Applet(KMSEProvider seImpl) {
-    super(seImpl);
+  protected KM4Applet() {
+    super(KMSEProviderFactory.createInstance());
   }
 
+
+  /**
+   * Installs this applet.
+   *
+   * @param bArray the array containing installation parameters
+   * @param bOffset the starting offset in bArray
+   * @param bLength the length in bytes of the parameter data in bArray
+   */
   public static void install(byte[] bArray, short bOffset, byte bLength) {
-    KMAndroidSEProvider provider = new KMAndroidSEProvider();
-    new KM4Applet(provider).register();
+    if (bLength == 0) {
+      // This change addresses a compatibility issue with JCardSim.
+      // The `install()` method in Java Card's framework receives a buffer containing installation
+      // parameters, including the applet's AID. However, JCardSim doesn't send the AID in this
+      // buffer, causing the buffer length to be 0. Calling `register()` with installation
+      // parameters in this scenario would throw an exception. This conditional check ensures that
+      // the no-argument `register()` method is called when the buffer length is 0, allowing the
+      // applet to be installed correctly in JCardSim.
+      new KM4Applet().register();
+    } else {
+      new KM4Applet().register(bArray, (short) (bOffset + 1), bArray[bOffset]);
+    }
   }
 
   @Override

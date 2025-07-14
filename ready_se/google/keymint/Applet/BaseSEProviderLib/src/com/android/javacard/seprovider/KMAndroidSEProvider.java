@@ -15,6 +15,7 @@
  */
 package com.android.javacard.seprovider;
 
+import javacard.framework.APDU;
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
 import javacard.framework.JCSystem;
@@ -1455,6 +1456,7 @@ public class KMAndroidSEProvider implements KMSEProvider {
     return len;
   }
 
+  @Override
   public boolean isPowerReset() {
     boolean flag = false;
     if (resetFlag[0] == POWER_RESET_TRUE) {
@@ -1465,6 +1467,11 @@ public class KMAndroidSEProvider implements KMSEProvider {
       }
     }
     return flag;
+  }
+
+  @Override
+  public boolean isValidCLA(APDU apdu) {
+    return apdu.isValidCLA();
   }
 
   @Override
