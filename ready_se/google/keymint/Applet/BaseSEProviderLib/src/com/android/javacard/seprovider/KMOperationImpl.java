@@ -250,8 +250,9 @@ public class KMOperationImpl implements KMOperation {
       byte[] outputDataBuf,
       short outputDataStart) {
     short len = 0;
+    KMSharedBuffer sharedBuffer = KMSharedBuffer.getInstance();
     try {
-      byte[] tmpArray = KMAndroidSEProvider.getInstance().tmpArray;
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       Cipher cipher = (Cipher) operationInst[KMPoolManager.RESOURCE_TYPE_CRYPTO];
       short cipherAlg = parameters[ALG_TYPE_OFFSET];
       short blockMode = parameters[BLOCK_MODE_OFFSET];
@@ -266,27 +267,9 @@ public class KMOperationImpl implements KMOperation {
       } else if ((cipherAlg == KMType.DES || cipherAlg == KMType.AES)
           && padding == KMType.PKCS7
           && mode == KMType.ENCRYPT) {
-        byte blkSize = 16;
-        byte paddingBytes;
-        short inputlen = inputDataLen;
-        if (cipherAlg == KMType.DES) {
-          blkSize = 8;
-        }
-        // padding bytes
-        if (inputlen % blkSize == 0) {
-          paddingBytes = blkSize;
-        } else {
-          paddingBytes = (byte) (blkSize - (inputlen % blkSize));
-        }
-        // final len with padding
-        inputlen = (short) (inputlen + paddingBytes);
-        // intermediate buffer to copy input data+padding
-        // fill in the padding
-        Util.arrayFillNonAtomic(tmpArray, (short) 0, inputlen, paddingBytes);
-        // copy the input data
-        Util.arrayCopyNonAtomic(inputDataBuf, inputDataStart, tmpArray, (short) 0, inputDataLen);
+        len = addPkcs7Padding(inputDataBuf, inputDataStart, inputDataLen, tmpArray, (short) 0);
         inputDataBuf = tmpArray;
-        inputDataLen = inputlen;
+        inputDataLen = len;
         inputDataStart = 0;
       }
       len =
@@ -295,25 +278,7 @@ public class KMOperationImpl implements KMOperation {
       if ((cipherAlg == KMType.AES || cipherAlg == KMType.DES)
           && padding == KMType.PKCS7
           && mode == KMType.DECRYPT) {
-        byte blkSize = 16;
-        if (cipherAlg == KMType.DES) {
-          blkSize = 8;
-        }
-        if (len > 0) {
-          // verify if padding is corrupted.
-          byte paddingByte = outputDataBuf[(short) (outputDataStart + len - 1)];
-          // padding byte always should be <= block size
-          if ((short) paddingByte > blkSize || (short) paddingByte <= 0) {
-            KMException.throwIt(KMError.INVALID_ARGUMENT);
-          }
-
-          for (short j = 1; j <= paddingByte; ++j) {
-            if (outputDataBuf[(short) (outputDataStart + len - j)] != paddingByte) {
-              KMException.throwIt(KMError.INVALID_ARGUMENT);
-            }
-          }
-          len = (short) (len - (short) paddingByte); // remove the padding bytes
-        }
+        len = removePkcs7Padding(outputDataBuf, outputDataStart, len);
       } else if (cipherAlg == KMType.AES && blockMode == KMType.GCM) {
         if (mode == KMType.ENCRYPT) {
           len +=
@@ -330,7 +295,7 @@ public class KMOperationImpl implements KMOperation {
         }
       }
     } finally {
-      KMAndroidSEProvider.getInstance().clean();
+      sharedBuffer.clean();
     }
     return len;
   }
@@ -411,5 +376,47 @@ public class KMOperationImpl implements KMOperation {
     } else {
       return (short) (parameters[AES_GCM_UPDATE_LEN_OFFSET] + dataSize - macLength);
     }
+  }
+
+  protected short addPkcs7Padding(byte[] buf, short offset, short len, byte[] out, short outOff) {
+    byte blkSize = 16;
+    byte paddingBytes;
+    short inputlen = len;
+    if (getAlgorithmType() == KMType.DES) {
+      blkSize = 8;
+    }
+    // padding bytes
+    paddingBytes = (byte) (blkSize - (inputlen & (blkSize - 1)));
+    // final len with padding
+    inputlen = (short) (inputlen + paddingBytes);
+    // intermediate buffer to copy input data+padding
+    // fill in the padding
+    Util.arrayFillNonAtomic(out, outOff, inputlen, paddingBytes);
+    // copy the input data
+    Util.arrayCopyNonAtomic(buf, offset, out, outOff, len);
+    return inputlen;
+  }
+
+  protected short removePkcs7Padding(byte[] buf, short offset, short len) {
+    byte blkSize = 16;
+    if (getAlgorithmType() == KMType.DES) {
+      blkSize = 8;
+    }
+    if (len > 0) {
+      // verify if padding is corrupted.
+      byte paddingByte = buf[(short) (offset + len - 1)];
+      // padding byte always should be <= block size
+      if ((short) paddingByte > blkSize || (short) paddingByte <= 0) {
+        KMException.throwIt(KMError.INVALID_ARGUMENT);
+      }
+
+      for (short j = 1; j <= paddingByte; ++j) {
+        if (buf[(short) (offset + len - j)] != paddingByte) {
+          KMException.throwIt(KMError.INVALID_ARGUMENT);
+        }
+      }
+      len = (short) (len - (short) paddingByte); // remove the padding bytes
+    }
+    return len;
   }
 }

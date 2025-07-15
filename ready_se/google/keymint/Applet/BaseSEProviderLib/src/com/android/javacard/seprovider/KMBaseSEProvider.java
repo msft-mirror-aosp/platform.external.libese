@@ -46,7 +46,7 @@ import org.globalplatform.upgrade.UpgradeManager;
  * and RSA_OAEP_MGF1_SHA256 algorithms. This class follows the pattern of Init-Update-Final for the
  * crypto operations.
  */
-public class KMAndroidSEProvider implements KMSEProvider {
+public abstract class KMBaseSEProvider implements KMSEProvider {
 
   // The tag length for AES GCM algorithm.
   public static final byte AES_GCM_TAG_LENGTH = 16;
@@ -55,8 +55,6 @@ public class KMAndroidSEProvider implements KMSEProvider {
   // AES keysize offsets in aesKeys[] for 128 and 256 sizes respectively.
   public static final byte KEYSIZE_128_OFFSET = 0x00;
   public static final byte KEYSIZE_256_OFFSET = 0x01;
-  // The size of the temporary buffer.
-  public static final short TMP_ARRAY_SIZE = 300;
   // The length of the rsa key in bytes.
   private static final short RSA_KEY_SIZE = 256;
   // Below are the flag to denote device reset events
@@ -82,8 +80,8 @@ public class KMAndroidSEProvider implements KMSEProvider {
   private KeyPair rsaKeyPair;
   // EC Key Pair.
   private KeyPair ecKeyPair;
-  // Temporary array.
-  public byte[] tmpArray;
+  // Shared buffer instance.
+  public KMSharedBuffer sharedBuffer;
   // This is used for internal encryption/decryption operations.
   private static AEADCipher aesGcmCipher;
   // Instance of Signature algorithm used in KDF.
@@ -100,14 +98,8 @@ public class KMAndroidSEProvider implements KMSEProvider {
   private KMOperationImpl globalOperation;
   // Entropy
   private RandomData rng;
-  // Singleton instance.
-  private static KMAndroidSEProvider androidSEProvider = null;
 
-  public static KMAndroidSEProvider getInstance() {
-    return androidSEProvider;
-  }
-
-  public KMAndroidSEProvider() {
+  public KMBaseSEProvider() {
     initStatics();
     // Re-usable AES,DES and HMAC keys in persisted memory.
     aesKeys = new AESKey[2];
@@ -128,22 +120,19 @@ public class KMAndroidSEProvider implements KMSEProvider {
     rsaKeyPair = new KeyPair(KeyPair.ALG_RSA, KeyBuilder.LENGTH_RSA_2048);
     ecKeyPair = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
     keyAgreement = KeyAgreement.getInstance(KeyAgreement.ALG_EC_SVDP_DH_PLAIN, false);
-    poolMgr = KMPoolManager.getInstance();
+    poolMgr = createPoolManager();
     poolMgr.initECKey(ecKeyPair);
     // RsaOAEP Decipher
-    rsaOaepDecipher = new KMRsaOAEPEncoding(KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA1);
+    rsaOaepDecipher = createRsaOaepDecipher(KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA1);
 
     kdf = Signature.getInstance(Signature.ALG_AES_CMAC_128, false);
     hmacSignature = Signature.getInstance(Signature.ALG_HMAC_SHA_256, false);
 
-    globalOperation = new KMOperationImpl();
+    globalOperation = (KMOperationImpl) poolMgr.createOperation();
 
-    // Temporary transient array created to use locally inside functions.
-    tmpArray = JCSystem.makeTransientByteArray(TMP_ARRAY_SIZE, JCSystem.CLEAR_ON_DESELECT);
-    Util.arrayFillNonAtomic(tmpArray, (short) 0, TMP_ARRAY_SIZE, (byte) 0);
+    sharedBuffer = KMSharedBuffer.getInstance();
     // Random number generator initialisation.
     rng = RandomData.getInstance(RandomData.ALG_KEYGENERATION);
-    androidSEProvider = this;
     resetFlag = JCSystem.makeTransientByteArray((short) 1, JCSystem.CLEAR_ON_RESET);
     resetFlag[0] = (byte) POWER_RESET_FALSE;
   }
@@ -153,19 +142,16 @@ public class KMAndroidSEProvider implements KMSEProvider {
     CMAC_KDF_CONSTANT_ZERO = new byte[] {0x00};
   }
 
-  public void clean() {
-    Util.arrayFillNonAtomic(tmpArray, (short) 0, TMP_ARRAY_SIZE, (byte) 0);
-  }
-
   public AESKey createAESKey(short keysize) {
+    if (keysize > KMSharedBuffer.TRANSIENT_BUFFER_SIZE) {
+      KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
+    }
     try {
-      if (keysize > TMP_ARRAY_SIZE) {
-        KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
-      }
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       newRandomNumber(tmpArray, (short) 0, (short) (keysize / 8));
       return createAESKey(tmpArray, (short) 0, (short) (keysize / 8));
     } finally {
-      clean();
+      sharedBuffer.clean();
     }
   }
 
@@ -186,10 +172,11 @@ public class KMAndroidSEProvider implements KMSEProvider {
 
   public DESKey createTDESKey() {
     try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       newRandomNumber(tmpArray, (short) 0, (short) (KeyBuilder.LENGTH_DES3_3KEY / 8));
       return createTDESKey(tmpArray, (short) 0, (short) (KeyBuilder.LENGTH_DES3_3KEY / 8));
     } finally {
-      clean();
+      sharedBuffer.clean();
     }
   }
 
@@ -207,10 +194,11 @@ public class KMAndroidSEProvider implements KMSEProvider {
       CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
     }
     try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       newRandomNumber(tmpArray, (short) 0, (short) (keysize / 8));
       return createHMACKey(tmpArray, (short) 0, (short) (keysize / 8));
     } finally {
-      clean();
+      sharedBuffer.clean();
     }
   }
 
@@ -282,34 +270,39 @@ public class KMAndroidSEProvider implements KMSEProvider {
         if (RSA_KEY_SIZE != privKeyLength || RSA_KEY_SIZE != pubModLength) {
           CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
         }
-        KeyPair rsaKey = createRsaKeyPair();
-        RSAPrivateKey privKey = (RSAPrivateKey) rsaKey.getPrivate();
-        // Copy exponent.
-        Util.arrayFillNonAtomic(tmpArray, (short) 0, RSA_KEY_SIZE, (byte) 0);
-        lengths[0] = privKey.getExponent(tmpArray, (short) 0);
-        if (lengths[0] > privKeyLength) {
-          CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
+        try {
+          byte[] tmpArray = sharedBuffer.getTransientBuffer();
+          KeyPair rsaKey = createRsaKeyPair();
+          RSAPrivateKey privKey = (RSAPrivateKey) rsaKey.getPrivate();
+          // Copy exponent.
+          Util.arrayFillNonAtomic(tmpArray, (short) 0, RSA_KEY_SIZE, (byte) 0);
+          lengths[0] = privKey.getExponent(tmpArray, (short) 0);
+          if (lengths[0] > privKeyLength) {
+            CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
+          }
+          Util.arrayFillNonAtomic(privKeyBuf, privKeyStart, privKeyLength, (byte) 0);
+          Util.arrayCopyNonAtomic(
+              tmpArray,
+              (short) 0,
+              privKeyBuf,
+              (short) (privKeyStart + privKeyLength - lengths[0]),
+              lengths[0]);
+          // Copy modulus
+          Util.arrayFillNonAtomic(tmpArray, (short) 0, RSA_KEY_SIZE, (byte) 0);
+          lengths[1] = privKey.getModulus(tmpArray, (short) 0);
+          if (lengths[1] > pubModLength) {
+            CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
+          }
+          Util.arrayFillNonAtomic(pubModBuf, pubModStart, pubModLength, (byte) 0);
+          Util.arrayCopyNonAtomic(
+              tmpArray,
+              (short) 0,
+              pubModBuf,
+              (short) (pubModStart + pubModLength - lengths[1]),
+              lengths[1]);
+        } finally {
+          sharedBuffer.clean();
         }
-        Util.arrayFillNonAtomic(privKeyBuf, privKeyStart, privKeyLength, (byte) 0);
-        Util.arrayCopyNonAtomic(
-            tmpArray,
-            (short) 0,
-            privKeyBuf,
-            (short) (privKeyStart + privKeyLength - lengths[0]),
-            lengths[0]);
-        // Copy modulus
-        Util.arrayFillNonAtomic(tmpArray, (short) 0, RSA_KEY_SIZE, (byte) 0);
-        lengths[1] = privKey.getModulus(tmpArray, (short) 0);
-        if (lengths[1] > pubModLength) {
-          CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
-        }
-        Util.arrayFillNonAtomic(pubModBuf, pubModStart, pubModLength, (byte) 0);
-        Util.arrayCopyNonAtomic(
-            tmpArray,
-            (short) 0,
-            pubModBuf,
-            (short) (pubModStart + pubModLength - lengths[1]),
-            lengths[1]);
         break;
       case KMType.EC:
         KeyPair ecKey = createECKeyPair();
@@ -512,6 +505,7 @@ public class KMAndroidSEProvider implements KMSEProvider {
       // [i] counter - 32 bits
       short iBufLen = 4;
       short keyOutLen = n * 16;
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       // Convert Hmackey to AES Key as the algorithm is ALG_AES_CMAC_128.
       KMHmacKey hmacKey = ((KMHmacKey) preSharedKey);
       hmacKey.hmacKey.getKey(tmpArray, (short) 0);
@@ -548,7 +542,7 @@ public class KMAndroidSEProvider implements KMSEProvider {
       }
       return createHMACKey(tmpArray, (short) iBufLen, (short) keyOutLen);
     } finally {
-      clean();
+      sharedBuffer.clean();
     }
   }
 
@@ -591,13 +585,14 @@ public class KMAndroidSEProvider implements KMSEProvider {
       byte[] signature,
       short signatureStart) {
     try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       KMAESKey aesKey = (KMAESKey) masterkey;
       short keyLen = (short) (aesKey.aesKey.getSize() / 8);
       aesKey.aesKey.getKey(tmpArray, (short) 0);
       return hmacSign(
           tmpArray, (short) 0, keyLen, data, dataStart, dataLength, signature, signatureStart);
     } finally {
-      clean();
+      sharedBuffer.clean();
     }
   }
 
@@ -816,8 +811,13 @@ public class KMAndroidSEProvider implements KMSEProvider {
     // Get the KeyObject from the operation and update the key with the secret key material.
     KMKeyObject keyObj = operation.getKeyObject();
     HMACKey key = (HMACKey) keyObj.keyObjectInst;
-    short len = hmacKey.getKey(tmpArray, (short) 0);
-    key.setKey(tmpArray, (short) 0, len);
+    try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
+      short len = hmacKey.getKey(tmpArray, (short) 0);
+      key.setKey(tmpArray, (short) 0, len);
+    } finally {
+      sharedBuffer.clean();
+    }
     ((KMOperationImpl) operation).init(key, digest, null, (short) 0, (short) 0);
     return operation;
   }
@@ -840,8 +840,13 @@ public class KMAndroidSEProvider implements KMSEProvider {
         // get EC private key buffer
         ECPrivateKey ecPrivKey =
             (ECPrivateKey) ((KMECDeviceUniqueKeyPair) keyPair).ecKeyPair.getPrivate();
-        short ecPrivKeyLen = ecPrivKey.getS(tmpArray, (short) 0);
-        opr = createEcSigner(digest, tmpArray, (short) 0, ecPrivKeyLen, true /* isRKP */);
+        try {
+          byte[] tmpArray = sharedBuffer.getTransientBuffer();
+          short ecPrivKeyLen = ecPrivKey.getS(tmpArray, (short) 0);
+          opr = createEcSigner(digest, tmpArray, (short) 0, ecPrivKeyLen, true /* isRKP */);
+        } finally {
+          sharedBuffer.clean();
+        }
         break;
       default:
         CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
@@ -917,6 +922,7 @@ public class KMAndroidSEProvider implements KMSEProvider {
     globalOperation.setPaddingAlgorithm(padding);
     globalOperation.setBlockMode(blockMode);
     try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       switch (interfaceType) {
         case KMDataStoreConstants.INTERFACE_TYPE_MASTER_KEY:
           KMAESKey aesKey = (KMAESKey) key;
@@ -939,7 +945,7 @@ public class KMAndroidSEProvider implements KMSEProvider {
           KMException.throwIt(KMError.INVALID_ARGUMENT);
       }
     } finally {
-      clean();
+      sharedBuffer.clean();
     }
     return globalOperation;
   }
@@ -1150,12 +1156,13 @@ public class KMAndroidSEProvider implements KMSEProvider {
         masterKey = new KMAESKey(key);
       }
       short keyLen = (short) (keySizeBits / 8);
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       Util.arrayFillNonAtomic(tmpArray, (short) 0, keyLen, (byte) 0);
       getTrueRandomNumber(tmpArray, (short) 0, keyLen);
       ((KMAESKey) masterKey).aesKey.setKey(tmpArray, (short) 0);
       return (KMKey) masterKey;
     } finally {
-      clean();
+      sharedBuffer.clean();
     }
   }
 
@@ -1277,10 +1284,16 @@ public class KMAndroidSEProvider implements KMSEProvider {
       byte[] out,
       short outOff,
       short outLen) {
-    // HMAC_extract
-    hkdfExtract(ikm, ikmOff, ikmLen, salt, saltOff, saltLen, tmpArray, (short) 0);
-    // HMAC_expand
-    return hkdfExpand(tmpArray, (short) 0, (short) 32, info, infoOff, infoLen, out, outOff, outLen);
+    try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
+      // HMAC_extract
+      hkdfExtract(ikm, ikmOff, ikmLen, salt, saltOff, saltLen, tmpArray, (short) 0);
+      // HMAC_expand
+      return hkdfExpand(tmpArray, (short) 0, (short) 32, info, infoOff, infoLen, out, outOff,
+          outLen);
+    } finally {
+      sharedBuffer.clean();
+    }
   }
 
   private short hkdfExtract(
@@ -1316,21 +1329,21 @@ public class KMAndroidSEProvider implements KMSEProvider {
       CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
     }
     HMACKey hmacKey = createHMACKey(prk, prkOff, prkLen);
-    Util.arrayFill(tmpArray, (short) 0, (short) 33, (byte) 0);
+    Util.arrayFill(prk, (short) 0, (short) 33, (byte) 0);
     short bytesCopied = 0;
     short len = 0;
     for (short i = 0; i < n; i++) {
-      tmpArray[0]++;
+      prk[0]++;
       hmacSignature.init(hmacKey, Signature.MODE_SIGN);
       if (i != 0) {
-        hmacSignature.update(tmpArray, (short) 1, (short) 32);
+        hmacSignature.update(prk, (short) 1, (short) 32);
       }
       hmacSignature.update(info, infoOff, infoLen);
-      len = hmacSignature.sign(tmpArray, (short) 0, (short) 1, tmpArray, (short) 1);
+      len = hmacSignature.sign(prk, (short) 0, (short) 1, prk, (short) 1);
       if ((short) (bytesCopied + len) > outLen) {
         len = (short) (outLen - bytesCopied);
       }
-      Util.arrayCopyNonAtomic(tmpArray, (short) 1, out, (short) (outOff + bytesCopied), len);
+      Util.arrayCopyNonAtomic(prk, (short) 1, out, (short) (outOff + bytesCopied), len);
       bytesCopied += len;
     }
     return outLen;
@@ -1574,5 +1587,13 @@ public class KMAndroidSEProvider implements KMSEProvider {
   @Override
   public void clearDeviceBooted(boolean resetBootFlag) {
     // To be filled
+  }
+
+  protected KMPoolManager createPoolManager() {
+    return new KMPoolManager();
+  }
+
+  protected KMRsaOAEPEncoding createRsaOaepDecipher(byte alg) {
+    return new KMRsaOAEPEncoding(alg);
   }
 }

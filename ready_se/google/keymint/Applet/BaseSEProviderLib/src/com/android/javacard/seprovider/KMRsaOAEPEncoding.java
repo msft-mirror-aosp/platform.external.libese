@@ -190,9 +190,9 @@ public class KMRsaOAEPEncoding extends Cipher {
 
   private short rsaOAEPDecode(byte[] encodedMsg, short encodedMsgOff, short encodedMsgLen) {
     MessageDigest.OneShot md = null;
-    byte[] tmpArray = KMAndroidSEProvider.getInstance().tmpArray;
-
+    KMSharedBuffer sharedBuffer = KMSharedBuffer.getInstance();
     try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       short hLen = getDigestLength();
 
       if (encodedMsgLen < (short) (2 * hLen + 1)) {
@@ -283,7 +283,7 @@ public class KMRsaOAEPEncoding extends Cipher {
       if (md != null) {
         md.close();
       }
-      Util.arrayFillNonAtomic(tmpArray, (short) 0, KMAndroidSEProvider.TMP_ARRAY_SIZE, (byte) 0);
+      sharedBuffer.clean();
     }
   }
 }

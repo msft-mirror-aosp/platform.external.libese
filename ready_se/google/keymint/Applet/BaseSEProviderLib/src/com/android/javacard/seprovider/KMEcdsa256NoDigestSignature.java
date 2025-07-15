@@ -87,14 +87,16 @@ public class KMEcdsa256NoDigestSignature extends Signature {
   @Override
   public short sign(byte[] bytes, short i, short i1, byte[] bytes1, short i2)
       throws CryptoException {
+    KMSharedBuffer sharedBuffer = KMSharedBuffer.getInstance();
     try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       if (i1 > MAX_NO_DIGEST_MSG_LEN) {
         CryptoException.throwIt(CryptoException.ILLEGAL_USE);
       }
       // add zeros to the left
       if (i1 < MAX_NO_DIGEST_MSG_LEN) {
         Util.arrayFillNonAtomic(
-            KMAndroidSEProvider.getInstance().tmpArray,
+            tmpArray,
             (short) 0,
             (short) MAX_NO_DIGEST_MSG_LEN,
             (byte) 0);
@@ -102,17 +104,17 @@ public class KMEcdsa256NoDigestSignature extends Signature {
       Util.arrayCopyNonAtomic(
           bytes,
           i,
-          KMAndroidSEProvider.getInstance().tmpArray,
+          tmpArray,
           (short) (MAX_NO_DIGEST_MSG_LEN - i1),
           i1);
       return inst.signPreComputedHash(
-          KMAndroidSEProvider.getInstance().tmpArray,
+          tmpArray,
           (short) 0,
           (short) MAX_NO_DIGEST_MSG_LEN,
           bytes1,
           i2);
     } finally {
-      KMAndroidSEProvider.getInstance().clean();
+      sharedBuffer.clean();
     }
   }
 

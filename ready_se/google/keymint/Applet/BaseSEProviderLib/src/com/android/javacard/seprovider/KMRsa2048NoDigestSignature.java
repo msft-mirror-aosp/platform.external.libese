@@ -82,9 +82,14 @@ public class KMRsa2048NoDigestSignature extends Signature {
   @Override
   public short sign(byte[] bytes, short i, short i1, byte[] bytes1, short i2)
       throws CryptoException {
-    padData(bytes, i, i1, KMAndroidSEProvider.getInstance().tmpArray, (short) 0);
-    return inst.doFinal(
-        KMAndroidSEProvider.getInstance().tmpArray, (short) 0, (short) 256, bytes1, i2);
+    KMSharedBuffer sharedBuffer = KMSharedBuffer.getInstance();
+    try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
+      padData(bytes, i, i1, tmpArray, (short) 0);
+      return inst.doFinal(tmpArray, (short) 0, (short) 256, bytes1, i2);
+    } finally {
+      sharedBuffer.clean();
+    }
   }
 
   @Override
