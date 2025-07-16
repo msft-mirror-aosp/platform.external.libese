@@ -42,7 +42,7 @@ public class KMRsa2048NoDigestSignature extends Signature {
 
   @Override
   public void init(Key key, byte b, byte[] bytes, short i, short i1) throws CryptoException {
-    inst.init(key, b, bytes, i, i1);
+    CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
   }
 
   @Override
@@ -129,7 +129,7 @@ public class KMRsa2048NoDigestSignature extends Signature {
     Util.arrayCopyNonAtomic(buf, start, outBuf, (short) (256 - len), len);
   }
 
-  private boolean isValidData(byte[] buf, short start, short len) {
+  protected boolean isValidData(byte[] buf, short start, short len) {
     if (algorithm == ALG_RSA_SIGN_NOPAD) {
       if (len > 256) {
         return false;

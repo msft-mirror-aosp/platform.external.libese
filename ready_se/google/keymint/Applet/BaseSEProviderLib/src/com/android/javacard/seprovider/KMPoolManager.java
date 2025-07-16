@@ -289,7 +289,7 @@ public class KMPoolManager {
     return KeyAgreement.getInstance(alg, false);
   }
 
-  private Signature getSignatureInstance(byte alg) {
+  protected Signature getSignatureInstance(byte alg) {
     if (KMRsa2048NoDigestSignature.ALG_RSA_SIGN_NOPAD == alg
         || KMRsa2048NoDigestSignature.ALG_RSA_PKCS1_NODIGEST == alg) {
       return new KMRsa2048NoDigestSignature(alg);
@@ -331,7 +331,7 @@ public class KMPoolManager {
     return ptr;
   }
 
-  private Cipher getCipherInstance(byte alg) {
+  protected Cipher getCipherInstance(byte alg) {
     if ((KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA1 == alg)
         || (KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA256 == alg)) {
       return new KMRsaOAEPEncoding(alg);

@@ -75,15 +75,15 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
   // DES3Key
   private DESKey triDesKey;
   // HMACKey
-  private HMACKey hmacKey;
+  protected HMACKey hmacKey;
   // RSA Key Pair
-  private KeyPair rsaKeyPair;
+  protected KeyPair rsaKeyPair;
   // EC Key Pair.
-  private KeyPair ecKeyPair;
+  protected KeyPair ecKeyPair;
   // Shared buffer instance.
   public KMSharedBuffer sharedBuffer;
   // This is used for internal encryption/decryption operations.
-  private static AEADCipher aesGcmCipher;
+  protected static AEADCipher aesGcmCipher;
   // Instance of Signature algorithm used in KDF.
   private Signature kdf;
   // Flag used to denote the power reset event.
@@ -378,7 +378,7 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
     rng.setSeed(num, offset, length);
   }
 
-  public short aesGCMEncrypt(
+  protected short aesGCMEncryptInternal(
       AESKey key,
       byte[] secret,
       short secretStart,
@@ -394,12 +394,6 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
       byte[] authTag,
       short authTagStart,
       short authTagLen) {
-    if (authTagLen != AES_GCM_TAG_LENGTH) {
-      CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
-    }
-    if (nonceLen != AES_GCM_NONCE_LENGTH) {
-      CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
-    }
     if (aesGcmCipher == null) {
       aesGcmCipher = (AEADCipher) Cipher.getInstance(AEADCipher.ALG_AES_GCM, false);
     }
@@ -433,7 +427,13 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
       short authTagLen) {
 
     AESKey key = createAESKey(aesKey, aesKeyStart, aesKeyLen);
-    return aesGCMEncrypt(
+    if (authTagLen != AES_GCM_TAG_LENGTH) {
+      CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
+    }
+    if (nonceLen != AES_GCM_NONCE_LENGTH) {
+      CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
+    }
+    return aesGCMEncryptInternal(
         key,
         secret,
         secretStart,
@@ -449,6 +449,34 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
         authTag,
         authTagStart,
         authTagLen);
+  }
+
+  protected boolean aesGCMDecryptInternal(
+      AESKey key,
+      byte[] encSecret,
+      short encSecretStart,
+      short encSecretLen,
+      byte[] secret,
+      short secretStart,
+      byte[] nonce,
+      short nonceStart,
+      short nonceLen,
+      byte[] authData,
+      short authDataStart,
+      short authDataLen,
+      byte[] authTag,
+      short authTagStart,
+      short authTagLen) {
+    if (aesGcmCipher == null) {
+      aesGcmCipher = (AEADCipher) Cipher.getInstance(AEADCipher.ALG_AES_GCM, false);
+    }
+    aesGcmCipher.init(key, Cipher.MODE_DECRYPT, nonce, nonceStart, nonceLen);
+    if (authDataLen != 0) {
+      aesGcmCipher.updateAAD(authData, authDataStart, authDataLen);
+    }
+    // encrypt the secret
+    aesGcmCipher.doFinal(encSecret, encSecretStart, encSecretLen, secret, secretStart);
+    return aesGcmCipher.verifyTag(authTag, authTagStart, authTagLen, AES_GCM_TAG_LENGTH);
   }
 
   @Override
@@ -470,21 +498,23 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
       byte[] authTag,
       short authTagStart,
       short authTagLen) {
-    if (aesGcmCipher == null) {
-      aesGcmCipher = (AEADCipher) Cipher.getInstance(AEADCipher.ALG_AES_GCM, false);
-    }
-    boolean verification = false;
     AESKey key = createAESKey(aesKey, aesKeyStart, aesKeyLen);
-    aesGcmCipher.init(key, Cipher.MODE_DECRYPT, nonce, nonceStart, nonceLen);
-    if (authDataLen != 0) {
-      aesGcmCipher.updateAAD(authData, authDataStart, authDataLen);
-    }
-    // encrypt the secret
-    aesGcmCipher.doFinal(encSecret, encSecretStart, encSecretLen, secret, secretStart);
-    verification =
-        aesGcmCipher.verifyTag(
-            authTag, authTagStart, (short) authTagLen, (short) AES_GCM_TAG_LENGTH);
-    return verification;
+    return aesGCMDecryptInternal(
+        key,
+        encSecret,
+        encSecretStart,
+        encSecretLen,
+        secret,
+        secretStart,
+        nonce,
+        nonceStart,
+        nonceLen,
+        authData,
+        authDataStart,
+        authDataLen,
+        authTag,
+        authTagStart,
+        authTagLen);
   }
 
   public HMACKey cmacKdf(
@@ -1289,8 +1319,8 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
       // HMAC_extract
       hkdfExtract(ikm, ikmOff, ikmLen, salt, saltOff, saltLen, tmpArray, (short) 0);
       // HMAC_expand
-      return hkdfExpand(tmpArray, (short) 0, (short) 32, info, infoOff, infoLen, out, outOff,
-          outLen);
+      return hkdfExpand(
+          tmpArray, (short) 0, (short) 32, info, infoOff, infoLen, out, outOff, outLen);
     } finally {
       sharedBuffer.clean();
     }

@@ -47,7 +47,7 @@ public class KMEcdsa256NoDigestSignature extends Signature {
 
   @Override
   public void init(Key key, byte b, byte[] bytes, short i, short i1) throws CryptoException {
-    inst.init(key, b, bytes, i, i1);
+    CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
   }
 
   @Override

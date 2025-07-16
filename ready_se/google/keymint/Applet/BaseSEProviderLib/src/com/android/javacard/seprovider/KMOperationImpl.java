@@ -140,7 +140,7 @@ public class KMOperationImpl implements KMOperation {
     return -1;
   }
 
-  private void initSymmetricCipher(Key key, byte[] ivBuffer, short ivStart, short ivLength) {
+  protected void initSymmetricCipher(Key key, byte[] ivBuffer, short ivStart, short ivLength) {
     Cipher symmCipher = (Cipher) operationInst[KMPoolManager.RESOURCE_TYPE_CRYPTO];
     byte cipherAlg = symmCipher.getAlgorithm();
     switch (cipherAlg) {
@@ -243,7 +243,7 @@ public class KMOperationImpl implements KMOperation {
         .generateSecret(publicKey, start, len, output, outputStart);
   }
 
-  private short finishCipher(
+  protected short finishCipher(
       byte[] inputDataBuf,
       short inputDataStart,
       short inputDataLen,
@@ -418,5 +418,17 @@ public class KMOperationImpl implements KMOperation {
       len = (short) (len - (short) paddingByte); // remove the padding bytes
     }
     return len;
+  }
+
+  protected short getMacLengthBits() {
+    return parameters[MAC_LENGTH_OFFSET];
+  }
+
+  protected Object getResource(byte resourceType) {
+    if (resourceType != KMPoolManager.RESOURCE_TYPE_CRYPTO
+        && resourceType != KMPoolManager.RESOURCE_TYPE_KEY) {
+      KMException.throwIt(KMError.INVALID_ARGUMENT);
+    }
+    return operationInst[resourceType];
   }
 }

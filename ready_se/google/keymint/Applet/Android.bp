@@ -20,14 +20,14 @@ package {
 filegroup {
     name: "km3_specific_sources",
     srcs: [
-        "AndroidSEProvider/src/com/android/javacard/keymaster/KM3Applet.java",
+        "BaseSEProvider/src/com/android/javacard/keymaster/KM3Applet.java",
     ],
 }
 
 filegroup {
     name: "km4_specific_sources",
     srcs: [
-        "AndroidSEProvider/src/com/android/javacard/keymaster/KM4Applet.java",
+        "BaseSEProvider/src/com/android/javacard/keymaster/KM4Applet.java",
     ],
 }
 
@@ -35,8 +35,10 @@ filegroup {
     name: "keymint3_applet_sources",
     srcs: [
         "src/**/*.java",
-        "AndroidSEProviderLib/**/*.java",
-        "AndroidSEProvider/**/*.java",
+        "BaseSEProviderLib/**/*.java",
+        "BaseSEProvider/**/*.java",
+        "JCardSimProvider/**/*.java",
+        "JCardSimProviderLib/**/*.java",
     ],
     exclude_srcs: [
         ":km4_specific_sources",
@@ -48,8 +50,10 @@ filegroup {
     name: "keymint4_applet_sources",
     srcs: [
         "src/**/*.java",
-        "AndroidSEProviderLib/**/*.java",
-        "AndroidSEProvider/**/*.java",
+        "BaseSEProviderLib/**/*.java",
+        "BaseSEProvider/**/*.java",
+        "JCardSimProvider/**/*.java",
+        "JCardSimProviderLib/**/*.java",
     ],
     exclude_srcs: [
         ":km3_specific_sources",

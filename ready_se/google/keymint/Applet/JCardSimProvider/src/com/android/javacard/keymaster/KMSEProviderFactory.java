@@ -13,9 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.javacard.seprovider;
+package com.android.javacard.keymaster;
 
-public class KMAndroidSEProvider extends KMBaseSEProvider {
+import com.android.javacard.seprovider.KMJCardSimulator;
+import com.android.javacard.seprovider.KMSEProvider;
 
-  public KMAndroidSEProvider() {}
+/**
+ * The KMSEProviderFactory class serves as a factory for creating instances of KMSEProvider. It
+ * abstracts the creation process, allowing the system to obtain the correct SEprovider instance
+ * based on the compilation target.
+ */
+public class KMSEProviderFactory {
+
+  /** Creates an instance of the provider for the JCardSim simulation environment. */
+  public static KMSEProvider createInstance() {
+    return new KMJCardSimulator();
+  }
 }
