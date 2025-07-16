@@ -49,6 +49,7 @@ ScopedAStatus JavacardKeyMintDevice::defaultHwInfo(KeyMintHardwareInfo* info) {
 }
 
 ScopedAStatus JavacardKeyMintDevice::getHardwareInfo(KeyMintHardwareInfo* info) {
+    card_->initializeJavacard();
     auto [item, err] = card_->sendRequest(Instruction::INS_GET_HW_INFO_CMD);
     std::optional<string> optKeyMintName;
     std::optional<string> optKeyMintAuthorName;
@@ -64,7 +65,6 @@ ScopedAStatus JavacardKeyMintDevice::getHardwareInfo(KeyMintHardwareInfo* info) 
         LOG(INFO) << "Returning defaultHwInfo in getHardwareInfo.";
         return defaultHwInfo(info);
     }
-    card_->initializeJavacard();
     info->keyMintName = std::move(optKeyMintName.value());
     info->keyMintAuthorName = std::move(optKeyMintAuthorName.value());
     info->timestampTokenRequired = (optTsRequired.value() == 1);
