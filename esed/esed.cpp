@@ -20,20 +20,14 @@
 
 #include <android-base/logging.h>
 #include <android-base/properties.h>
-#include <hidl/HidlTransportSupport.h>
-#include <utils/StrongPointer.h>
+#include <android/binder_manager.h>
+#include <android/binder_process.h>
 
 // Select the implementation
 #include <esecpp/NxpPn80tNqNci.h>
 using EseInterfaceImpl = android::NxpPn80tNqNci;
 
 #include "Weaver.h"
-
-using android::OK;
-using android::sp;
-using android::status_t;
-using android::hardware::configureRpcThreadpool;
-using android::hardware::joinRpcThreadpool;
 
 using namespace std::chrono_literals;
 
@@ -70,20 +64,18 @@ int main(int /* argc */, char** /* argv */) {
     // Close it until use.
     ese.close();
 
-
     // This will be a single threaded daemon. This is important as libese is not
     // thread safe so we use binder to synchronize requests for us.
-    constexpr bool thisThreadWillJoinPool = true;
-    configureRpcThreadpool(1, thisThreadWillJoinPool);
+    ABinderProcess_setThreadPoolMaxThreadCount(0);
 
     // Create Weaver HAL instance
-    sp<Weaver> weaver = new Weaver{ese};
-    const status_t status = weaver->registerAsService();
-    if (status != OK) {
+    std::shared_ptr<Weaver> weaver = ndk::SharedRefBase::make<Weaver>(ese);
+    auto instanceName = std::string(Weaver::descriptor) + "/weaver";
+    auto status = AServiceManager_addService(weaver->asBinder().get(), instanceName.c_str());
+    if (status != STATUS_OK) {
         LOG(ERROR) << "Failed to register Weaver as a service (status: " << status << ")";
     }
 
-
-    joinRpcThreadpool();
+    ABinderProcess_joinThreadPool();
     return -1; // Should never reach here
 }

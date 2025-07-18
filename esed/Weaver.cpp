@@ -16,9 +16,6 @@
 
 #include "Weaver.h"
 
-#include <algorithm>
-#include <tuple>
-
 #include <android-base/logging.h>
 
 #include <ese/app/weaver.h>
@@ -27,16 +24,11 @@
 namespace android {
 namespace esed {
 
-// libhidl
-using ::android::hardware::Void;
+using ::aidl::android::hardware::weaver::WeaverConfig;
+using ::aidl::android::hardware::weaver::WeaverReadResponse;
+using ::aidl::android::hardware::weaver::WeaverReadStatus;
 
-// HAL
-using ::android::hardware::weaver::V1_0::WeaverConfig;
-using ::android::hardware::weaver::V1_0::WeaverReadResponse;
-using ::android::hardware::weaver::V1_0::WeaverReadStatus;
-
-// Methods from ::android::hardware::weaver::V1_0::IWeaver follow.
-Return<void> Weaver::getConfig(getConfig_cb _hidl_cb) {
+ScopedAStatus Weaver::getConfig(WeaverConfig* _aidl_return) {
     LOG(VERBOSE) << "Running Weaver::getNumSlots";
     // Open SE session for applet
     ScopedEseConnection ese{mEse};
@@ -50,20 +42,18 @@ Return<void> Weaver::getConfig(getConfig_cb _hidl_cb) {
         case 0x6A82: // SW_FILE_NOT_FOUND
             // No applet means no Weaver storage. Report no slots to prompt
             // fallback to software mode.
-            _hidl_cb(WeaverStatus::OK, WeaverConfig{0, 0, 0});
-            return Void();
+            *_aidl_return = WeaverConfig{0, 0, 0};
+            return ScopedAStatus::ok();
         }
     } else if (res != ESE_APP_RESULT_OK) {
         // Transient error
-        _hidl_cb(WeaverStatus::FAILED, WeaverConfig{});
-        return Void();
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
 
     // Call the applet
     uint32_t numSlots;
     if (ese_weaver_get_num_slots(&ws, &numSlots) != ESE_APP_RESULT_OK) {
-        _hidl_cb(WeaverStatus::FAILED, WeaverConfig{});
-        return Void();
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
 
     // Try and close the session
@@ -71,36 +61,36 @@ Return<void> Weaver::getConfig(getConfig_cb _hidl_cb) {
         LOG(WARNING) << "Failed to close Weaver session";
     }
 
-    _hidl_cb(WeaverStatus::OK, WeaverConfig{numSlots, kEseWeaverKeySize, kEseWeaverValueSize});
-    return Void();
+    *_aidl_return = {(int32_t)numSlots, kEseWeaverKeySize, kEseWeaverValueSize};
+    return ScopedAStatus::ok();
 }
 
-Return<WeaverStatus> Weaver::write(uint32_t slotId, const hidl_vec<uint8_t>& key,
-                           const hidl_vec<uint8_t>& value) {
+ScopedAStatus Weaver::write(int32_t slotId, const std::vector<uint8_t>& key,
+                            const std::vector<uint8_t>& value) {
     LOG(INFO) << "Running Weaver::write on slot " << slotId;
     ScopedEseConnection ese{mEse};
     ese.init();
     // Validate the key and value sizes
     if (key.size() != kEseWeaverKeySize) {
         LOG(ERROR) << "Key size must be " << kEseWeaverKeySize << ", not" << key.size() << " bytes";
-        return WeaverStatus::FAILED;
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
     if (value.size() != kEseWeaverValueSize) {
         LOG(ERROR) << "Value size must be " << kEseWeaverValueSize << ", not" << value.size()
                    << " bytes";
-        return WeaverStatus::FAILED;
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
 
     // Open SE session for applet
     EseWeaverSession ws;
     ese_weaver_session_init(&ws);
     if (ese_weaver_session_open(mEse.ese_interface(), &ws) != ESE_APP_RESULT_OK) {
-        return WeaverStatus::FAILED;
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
 
     // Call the applet
     if (ese_weaver_write(&ws, slotId, key.data(), value.data()) != ESE_APP_RESULT_OK) {
-        return WeaverStatus::FAILED;
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
 
     // Try and close the session
@@ -108,17 +98,17 @@ Return<WeaverStatus> Weaver::write(uint32_t slotId, const hidl_vec<uint8_t>& key
         LOG(WARNING) << "Failed to close Weaver session";
     }
 
-    return WeaverStatus::OK;
+    return ScopedAStatus::ok();
 }
 
-Return<void> Weaver::read(uint32_t slotId, const hidl_vec<uint8_t>& key, read_cb _hidl_cb) {
+ScopedAStatus Weaver::read(int32_t slotId, const std::vector<uint8_t>& key,
+                           WeaverReadResponse* _aidl_return) {
     LOG(VERBOSE) << "Running Weaver::read on slot " << slotId;
 
     // Validate the key size
     if (key.size() != kEseWeaverKeySize) {
         LOG(ERROR) << "Key size must be " << kEseWeaverKeySize << ", not" << key.size() << " bytes";
-        _hidl_cb(WeaverReadStatus::FAILED, WeaverReadResponse{});
-        return Void();
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
 
     // Open SE session for applet
@@ -127,33 +117,30 @@ Return<void> Weaver::read(uint32_t slotId, const hidl_vec<uint8_t>& key, read_cb
     EseWeaverSession ws;
     ese_weaver_session_init(&ws);
     if (ese_weaver_session_open(mEse.ese_interface(), &ws) != ESE_APP_RESULT_OK) {
-        _hidl_cb(WeaverReadStatus::FAILED, WeaverReadResponse{});
-        return Void();
+        return ScopedAStatus::fromStatus(STATUS_FAILED_TRANSACTION);
     }
 
     // Call the applet
-    hidl_vec<uint8_t> value;
-    value.resize(kEseWeaverValueSize);
+    uint8_t value[kEseWeaverValueSize] = {};
     uint32_t timeout;
-    const int res = ese_weaver_read(&ws, slotId, key.data(), value.data(), &timeout);
-    WeaverReadStatus status;
+    const int res = ese_weaver_read(&ws, slotId, key.data(), value, &timeout);
     switch (res) {
         case ESE_APP_RESULT_OK:
-            status = WeaverReadStatus::OK;
-            timeout = 0;
+            _aidl_return->status = WeaverReadStatus::OK;
+            _aidl_return->value = std::vector<uint8_t>(value, value + sizeof(value));
+            _aidl_return->timeout = 0;
             break;
         case ESE_WEAVER_READ_WRONG_KEY:
-            status = WeaverReadStatus::INCORRECT_KEY;
-            value.resize(0);
+            _aidl_return->status = WeaverReadStatus::INCORRECT_KEY;
+            _aidl_return->timeout = timeout;
             break;
         case ESE_WEAVER_READ_TIMEOUT:
-            status = WeaverReadStatus::THROTTLE;
-            value.resize(0);
+            _aidl_return->status = WeaverReadStatus::THROTTLE;
+            _aidl_return->timeout = timeout;
             break;
         default:
-            status = WeaverReadStatus::FAILED;
-            timeout = 0;
-            value.resize(0);
+            _aidl_return->status = WeaverReadStatus::FAILED;
+            _aidl_return->timeout = 0;
             break;
     }
 
@@ -161,9 +148,8 @@ Return<void> Weaver::read(uint32_t slotId, const hidl_vec<uint8_t>& key, read_cb
     if (ese_weaver_session_close(&ws) != ESE_APP_RESULT_OK) {
         LOG(WARNING) << "Failed to close Weaver session";
     }
-
-    _hidl_cb(status, WeaverReadResponse{timeout, value});
-    return Void();
+    memset_explicit(value, 0, sizeof(value));
+    return ScopedAStatus::ok();
 }
 
 }  // namespace esed
