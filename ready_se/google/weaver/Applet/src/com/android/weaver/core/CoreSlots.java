@@ -153,6 +153,57 @@ class CoreSlots implements Slots {
          */
         static final byte SLOT_OBJECTS_SIZE = 2;
 
+        // The below two arrays map the value of the failure counter to the timeout (in seconds)
+        // that the applet enforces after that number of failures.  The timeouts are 32-bit values;
+        // however, to be compatible with Javacard implementations that do not support 'int', we
+        // split them into their low and high 16-bit halves.
+
+        private static final short[] TIMEOUT_SECONDS_LOW = {
+            /* 0  */ (short) (0 & 0xffff),
+            /* 1  */ (short) (0 & 0xffff),
+            /* 2  */ (short) (0 & 0xffff),
+            /* 3  */ (short) (0 & 0xffff),
+            /* 4  */ (short) (0 & 0xffff),
+            /* 5  */ (short) (60 & 0xffff), // 1 minute
+            /* 6  */ (short) (300 & 0xffff), // 5 minutes
+            /* 7  */ (short) (900 & 0xffff), // 15 minutes
+            /* 8  */ (short) (1800 & 0xffff), // 30 minutes
+            /* 9  */ (short) (5400 & 0xffff), // 90 minutes
+            /* 10 */ (short) (14580 & 0xffff), // 3^(10-5) minutes = 4.05 hours
+            /* 11 */ (short) (43740 & 0xffff), // 3^(11-5) minutes = 12.15 hours
+            /* 12 */ (short) (131220 & 0xffff), // 3^(12-5) minutes = 36.45 hours
+            /* 13 */ (short) (393660 & 0xffff), // 3^(13-5) minutes = 4.56 days
+            /* 14 */ (short) (1180980 & 0xffff), // 3^(14-5) minutes = 13.67 days
+            /* 15 */ (short) (3542940 & 0xffff), // 3^(15-5) minutes = 41.01 days
+            /* 16 */ (short) (10628820 & 0xffff), // 3^(16-5) minutes = 123.02 days
+            /* 17 */ (short) (31886460 & 0xffff), // 3^(17-5) minutes = 1.01 years
+            /* 18 */ (short) (95659380 & 0xffff), // 3^(18-5) minutes = 3.03 years
+            /* 19 */ (short) (286978140 & 0xffff), // 3^(19-5) minutes = 9.09 years
+        };
+
+        private static final short[] TIMEOUT_SECONDS_HIGH = {
+            /* 0  */ (short) (0 >> 16),
+            /* 1  */ (short) (0 >> 16),
+            /* 2  */ (short) (0 >> 16),
+            /* 3  */ (short) (0 >> 16),
+            /* 4  */ (short) (0 >> 16),
+            /* 5  */ (short) (60 >> 16), // 1 minute
+            /* 6  */ (short) (300 >> 16), // 5 minutes
+            /* 7  */ (short) (900 >> 16), // 15 minutes
+            /* 8  */ (short) (1800 >> 16), // 30 minutes
+            /* 9  */ (short) (5400 >> 16), // 90 minutes
+            /* 10 */ (short) (14580 >> 16), // 3^(10-5) minutes = 4.05 hours
+            /* 11 */ (short) (43740 >> 16), // 3^(11-5) minutes = 12.15 hours
+            /* 12 */ (short) (131220 >> 16), // 3^(12-5) minutes = 36.45 hours
+            /* 13 */ (short) (393660 >> 16), // 3^(13-5) minutes = 4.56 days
+            /* 14 */ (short) (1180980 >> 16), // 3^(14-5) minutes = 13.67 days
+            /* 15 */ (short) (3542940 >> 16), // 3^(15-5) minutes = 41.01 days
+            /* 16 */ (short) (10628820 >> 16), // 3^(16-5) minutes = 123.02 days
+            /* 17 */ (short) (31886460 >> 16), // 3^(17-5) minutes = 1.01 years
+            /* 18 */ (short) (95659380 >> 16), // 3^(18-5) minutes = 3.03 years
+            /* 19 */ (short) (286978140 >> 16), // 3^(19-5) minutes = 9.09 years
+        };
+
         private static byte[] sRemainingBackoff;
 
         private byte[] mKey;
@@ -231,6 +282,14 @@ class CoreSlots implements Slots {
          * @return status code
          */
         public byte read(byte[] keyBuffer, short keyOffset, byte[] outBuffer, short outOffset) {
+
+            // Check for no more attempts allowed.
+            if (mFailureCount >= TIMEOUT_SECONDS_LOW.length || mFailureCount < 0) {
+                Util.setShort(outBuffer, outOffset, (short) 0x7fff);
+                Util.setShort(outBuffer, (short) (outOffset + 2), (short) 0xffff);
+                return Consts.READ_BACK_OFF;
+            }
+
             // Check timeout has expired or hasn't been started
             mBackoffTimer.getRemainingTime(sRemainingBackoff, (short) 0);
             if (hasRemainingBackOff()) {
@@ -283,48 +342,21 @@ class CoreSlots implements Slots {
         }
 
         /**
-         * Calculates the timeout in seconds as a function of the failure
-         * counter 'x' as follows:
+         * Computes the timeout in seconds as a function of the failure counter.
          *
-         * [0, 5) -> 0
-         * 5 -> 30
-         * [6, 10) -> 0
-         * [11, 30) -> 30
-         * [30, 140) -> 30 * (2^((x - 30)/10))
-         * [140, inf) -> 1 day
-         *
-         * The 32-bit timeout in seconds is written to the array.
+         * <p>The 32-bit timeout in seconds is written to bArray starting at bOff.
          *
          * @return Whether the timeout is nonzero
          */
         private static boolean computeRetryTimeout(byte[] bArray, short bOff, short failureCount) {
-            short highWord = 0;
-            short lowWord = 0;
-
-            final short thirtySeconds = 30;
-            if (failureCount == 0) {
-                // 0s
-            } else if (failureCount > 0 && failureCount <= 10) {
-                if (failureCount % 5 == 0) {
-                    // 30s
-                  lowWord = thirtySeconds;
-                }  else {
-                    // 0s
-                }
-            } else if (failureCount < 30) {
-                // 30s
-                lowWord = thirtySeconds;
-            } else if (failureCount < 140) {
-                // 30 * (2^((x - 30)/10))
-                final short shift = (short) ((short) (failureCount - 30) / 10);
-                lowWord = (short) (thirtySeconds << shift);
-            } else {
-                // 1 day in seconds = 24 * 60 * 60 = 0x1 5180
-                highWord = 0x1;
-                lowWord = 0x5180;
+            // Get the high and low words of the timeout.
+            if (failureCount >= TIMEOUT_SECONDS_LOW.length || failureCount < 0) {
+                failureCount = (short) (TIMEOUT_SECONDS_LOW.length - 1);
             }
+            short highWord = TIMEOUT_SECONDS_HIGH[failureCount];
+            short lowWord = TIMEOUT_SECONDS_LOW[failureCount];
 
-            // Write the value to the buffer
+            // Write the timeout to the array.
             Util.setShort(bArray, bOff, highWord);
             Util.setShort(bArray, (short) (bOff + 2), lowWord);
 
