@@ -243,20 +243,19 @@ class CoreSlots implements Slots {
             if (mFailureCount != 0x7fff) {
                 mFailureCount += 1;
             }
-            byte result = Consts.READ_WRONG_KEY;
 
             // Compute the next retry timeout, and start/stop the timer accordingly.
             if (computeRetryTimeout(sRemainingBackoff, (short) 0, mFailureCount)) {
                 // Nonzero timeout: start the timer.
                 mBackoffTimer.startTimer(
                         sRemainingBackoff, (short) 0, DSTimer.DST_POWEROFFMODE_FALLBACK);
-                result = Consts.READ_BACK_OFF;
             } else {
                 // Zero timeout: stop the timer.
                 mBackoffTimer.stopTimer();
             }
 
             // Check whether the key matches, in constant time.
+            final byte result;
             final byte[] data;
             if (Util.arrayCompare(keyBuffer, keyOffset, mKey, (short) 0, Consts.SLOT_KEY_BYTES)
                     == 0) {
@@ -268,6 +267,7 @@ class CoreSlots implements Slots {
             } else {
                 // Wrong key.  Copy out the next timeout.
                 data = sRemainingBackoff;
+                result = Consts.READ_WRONG_KEY;
             }
             Util.arrayCopyNonAtomic(data, (short) 0, outBuffer, outOffset, Consts.SLOT_VALUE_BYTES);
             return result;
