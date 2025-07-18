@@ -28,6 +28,8 @@ using ::aidl::android::hardware::weaver::WeaverConfig;
 using ::aidl::android::hardware::weaver::WeaverReadResponse;
 using ::aidl::android::hardware::weaver::WeaverReadStatus;
 
+constexpr uint32_t kMillisPerSecond = 1000;
+
 ScopedAStatus Weaver::getConfig(WeaverConfig* _aidl_return) {
     LOG(VERBOSE) << "Running Weaver::getNumSlots";
     // Open SE session for applet
@@ -122,8 +124,8 @@ ScopedAStatus Weaver::read(int32_t slotId, const std::vector<uint8_t>& key,
 
     // Call the applet
     uint8_t value[kEseWeaverValueSize] = {};
-    uint32_t timeout;
-    const int res = ese_weaver_read(&ws, slotId, key.data(), value, &timeout);
+    uint32_t timeout_seconds;
+    const int res = ese_weaver_read(&ws, slotId, key.data(), value, &timeout_seconds);
     switch (res) {
         case ESE_APP_RESULT_OK:
             _aidl_return->status = WeaverReadStatus::OK;
@@ -132,11 +134,11 @@ ScopedAStatus Weaver::read(int32_t slotId, const std::vector<uint8_t>& key,
             break;
         case ESE_WEAVER_READ_WRONG_KEY:
             _aidl_return->status = WeaverReadStatus::INCORRECT_KEY;
-            _aidl_return->timeout = timeout;
+            _aidl_return->timeout = timeout_seconds * kMillisPerSecond;
             break;
         case ESE_WEAVER_READ_TIMEOUT:
             _aidl_return->status = WeaverReadStatus::THROTTLE;
-            _aidl_return->timeout = timeout;
+            _aidl_return->timeout = timeout_seconds * kMillisPerSecond;
             break;
         default:
             _aidl_return->status = WeaverReadStatus::FAILED;

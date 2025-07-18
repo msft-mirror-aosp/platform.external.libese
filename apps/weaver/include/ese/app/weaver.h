@@ -98,7 +98,6 @@ EseAppResult ese_weaver_get_num_slots(struct EseWeaverSession *session, uint32_t
 EseAppResult ese_weaver_write(struct EseWeaverSession *session, uint32_t slotId,
                               const uint8_t *key, const uint8_t *value);
 
-
 /**
  * Reads the value in the slot provided the correct key was passed.
  *
@@ -107,9 +106,9 @@ EseAppResult ese_weaver_write(struct EseWeaverSession *session, uint32_t slotId,
  *
  * @returns ESE_APP_RESULT_OK if |value| was filled with the value.
  *          ESE_WEAVER_READ_WRONG_KEY if |key| was wrong and |timeout| contains
- *          a valid timeout.
+ *          a valid, possibly zero timeout (in seconds).
  *          ESE_WEAVER_READ_TIMEOUT if Weaver is in backoff mode and |timeout|
- *          contains a valid timeout.
+ *          contains a valid timeout (in seconds).
  */
 EseAppResult ese_weaver_read(struct EseWeaverSession *session, uint32_t slotId,
                              const uint8_t *key, uint8_t *value, uint32_t *timeout);
