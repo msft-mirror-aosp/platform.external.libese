@@ -30,6 +30,14 @@ using ::aidl::android::hardware::weaver::WeaverReadStatus;
 
 constexpr uint32_t kMillisPerSecond = 1000;
 
+static void SetRetryTimeout(WeaverReadResponse& response, uint32_t timeout_seconds) {
+    if (timeout_seconds > INT32_MAX / kMillisPerSecond) {
+        response.timeout = INT32_MAX;
+    } else {
+        response.timeout = timeout_seconds * kMillisPerSecond;
+    }
+}
+
 ScopedAStatus Weaver::getConfig(WeaverConfig* _aidl_return) {
     LOG(VERBOSE) << "Running Weaver::getNumSlots";
     // Open SE session for applet
@@ -134,11 +142,11 @@ ScopedAStatus Weaver::read(int32_t slotId, const std::vector<uint8_t>& key,
             break;
         case ESE_WEAVER_READ_WRONG_KEY:
             _aidl_return->status = WeaverReadStatus::INCORRECT_KEY;
-            _aidl_return->timeout = timeout_seconds * kMillisPerSecond;
+            SetRetryTimeout(*_aidl_return, timeout_seconds);
             break;
         case ESE_WEAVER_READ_TIMEOUT:
             _aidl_return->status = WeaverReadStatus::THROTTLE;
-            _aidl_return->timeout = timeout_seconds * kMillisPerSecond;
+            SetRetryTimeout(*_aidl_return, timeout_seconds);
             break;
         default:
             _aidl_return->status = WeaverReadStatus::FAILED;
