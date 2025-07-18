@@ -245,30 +245,31 @@ class CoreSlots implements Slots {
             }
             byte result = Consts.READ_WRONG_KEY;
 
-            // Start the timer on a failure
-            if (throttle(sRemainingBackoff, (short) 0, mFailureCount)) {
+            // Compute the next retry timeout, and start/stop the timer accordingly.
+            if (computeRetryTimeout(sRemainingBackoff, (short) 0, mFailureCount)) {
+                // Nonzero timeout: start the timer.
                 mBackoffTimer.startTimer(
                         sRemainingBackoff, (short) 0, DSTimer.DST_POWEROFFMODE_FALLBACK);
                 result = Consts.READ_BACK_OFF;
             } else {
+                // Zero timeout: stop the timer.
                 mBackoffTimer.stopTimer();
             }
 
-            // Check the key matches in constant time and copy out the value if it does
-            result = (Util.arrayCompare(
-                    keyBuffer, keyOffset, mKey, (short) 0, Consts.SLOT_KEY_BYTES) == 0) ?
-                    Consts.READ_SUCCESS : result;
-
-            // Keep track of the number of failures
-            if (result == Consts.READ_SUCCESS) {
-                // This read was successful so reset the failures
+            // Check whether the key matches, in constant time.
+            final byte[] data;
+            if (Util.arrayCompare(keyBuffer, keyOffset, mKey, (short) 0, Consts.SLOT_KEY_BYTES)
+                    == 0) {
+                // Correct key.  Reset the failure counter, stop the timer, and copy out the value.
                 mFailureCount = 0;
                 mBackoffTimer.stopTimer();
+                data = mValue;
+                result = Consts.READ_SUCCESS;
+            } else {
+                // Wrong key.  Copy out the next timeout.
+                data = sRemainingBackoff;
             }
-
-            final byte[] data = (result == Consts.READ_SUCCESS) ? mValue : sRemainingBackoff;
             Util.arrayCopyNonAtomic(data, (short) 0, outBuffer, outOffset, Consts.SLOT_VALUE_BYTES);
-
             return result;
         }
 
@@ -294,9 +295,9 @@ class CoreSlots implements Slots {
          *
          * The 32-bit timeout in seconds is written to the array.
          *
-         * @return Whether there is any throttle time.
+         * @return Whether the timeout is nonzero
          */
-        private static boolean throttle(byte[] bArray, short bOff, short failureCount) {
+        private static boolean computeRetryTimeout(byte[] bArray, short bOff, short failureCount) {
             short highWord = 0;
             short lowWord = 0;
 
