@@ -2244,32 +2244,26 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
   }
 
   private short finishImportWrappedKeyCmd(APDU apdu) {
-    short cmd = KMArray.instance((short) 8);
-    short params = KMKeyParameters.expAny();
-    KMArray.cast(cmd).add((short) 0, params); // Key Params of wrapped key
-    KMArray.cast(cmd).add((short) 1, KMEnum.instance(KMType.KEY_FORMAT)); // Key Format
-    KMArray.cast(cmd).add((short) 2, KMByteBlob.exp()); // Wrapped Import Key Blob
-    KMArray.cast(cmd).add((short) 3, KMByteBlob.exp()); // Auth Tag
-    KMArray.cast(cmd).add((short) 4, KMByteBlob.exp()); // IV - Nonce
-    KMArray.cast(cmd).add((short) 5, KMByteBlob.exp()); // Wrapped Key ASSOCIATED AUTH DATA
-    KMArray.cast(cmd).add((short) 6, KMInteger.exp()); // Password Sid
-    KMArray.cast(cmd).add((short) 7, KMInteger.exp()); // Biometric Sid
+    short cmd = KMArray.instance((short) 6);
+    KMArray.cast(cmd).add((short) 0, KMByteBlob.exp()); // Wrapped Import Key Blob
+    KMArray.cast(cmd).add((short) 1, KMByteBlob.exp()); // Auth Tag
+    KMArray.cast(cmd).add((short) 2, KMByteBlob.exp()); // IV - Nonce
+    KMArray.cast(cmd).add((short) 3, KMByteBlob.exp()); // Wrapped Key ASSOCIATED AUTH DATA
+    KMArray.cast(cmd).add((short) 4, KMInteger.exp()); // Password Sid
+    KMArray.cast(cmd).add((short) 5, KMInteger.exp()); // Biometric Sid
     return receiveIncoming(apdu, cmd);
   }
 
-  // TODO remove cmd later on
   private void processFinishImportWrappedKeyCmd(APDU apdu) {
     short cmd = finishImportWrappedKeyCmd(apdu);
-    short keyParameters = KMArray.cast(cmd).get((short) 0);
-    short keyFmt = KMArray.cast(cmd).get((short) 1);
-    keyFmt = KMEnum.cast(keyFmt).getVal();
-    validateImportKey(keyParameters, keyFmt);
     byte[] scratchPad = apdu.getBuffer();
     // Step 4 - AES-GCM decrypt the wrapped key
-    data[INPUT_DATA] = KMArray.cast(cmd).get((short) 2);
-    data[AUTH_TAG] = KMArray.cast(cmd).get((short) 3);
-    data[NONCE] = KMArray.cast(cmd).get((short) 4);
-    data[AUTH_DATA] = KMArray.cast(cmd).get((short) 5);
+    data[INPUT_DATA] = KMArray.cast(cmd).get((short) 0);
+    data[AUTH_TAG] = KMArray.cast(cmd).get((short) 1);
+    data[NONCE] = KMArray.cast(cmd).get((short) 2);
+    data[AUTH_DATA] = KMArray.cast(cmd).get((short) 3);
+    short passwordSid = KMArray.cast(cmd).get((short) 4);
+    short biometricSid = KMArray.cast(cmd).get((short) 5);
 
     if (!isValidWrappingKey()) {
       KMException.throwIt(KMError.UNKNOWN_ERROR);
@@ -2278,9 +2272,16 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
         aesGCMDecrypt(
             getWrappingKey(), data[INPUT_DATA], data[NONCE], data[AUTH_DATA], data[AUTH_TAG]);
     resetWrappingKey();
+    KMAsn1Parser asn1Decoder = KMAsn1Parser.instance();
+    // Parse and extract the key format value from the ASN1 DER encoded KeyDescription
+    short keyFmt = asn1Decoder.keyFormatFromKeyDescription(data[AUTH_DATA]);
+    // Parse and extract the KeyParameters from the ASN1 DER encoded KeyDescription. In addition,
+    // replaces the USER_SECURE_ID with either passwordSid or biometricSid.
+    data[KEY_PARAMETERS] =
+        asn1Decoder.parseAndUpdateAuthorizationList(
+            data[AUTH_DATA], scratchPad, (short) 0, passwordSid, biometricSid);
     // Step 5 - Import decrypted key
     data[ORIGIN] = KMType.SECURELY_IMPORTED;
-    data[KEY_PARAMETERS] = keyParameters;
     // create key blob array
     importKey(apdu, keyFmt, scratchPad);
   }
