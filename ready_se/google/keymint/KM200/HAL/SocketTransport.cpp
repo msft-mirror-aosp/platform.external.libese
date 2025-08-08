@@ -22,7 +22,6 @@
 #include <memory>
 #include <vector>
 
-#include <aidl/android/hardware/security/keymint/ErrorCode.h>
 #include <android-base/logging.h>
 #include <sys/socket.h>
 
@@ -33,16 +32,17 @@
 #define MAX_RECV_BUFFER_SIZE 2500
 
 namespace keymint::javacard {
-using ::aidl::android::hardware::security::keymint::ErrorCode;
 using std::shared_ptr;
 using std::vector;
+
+constexpr int kHardwareTypeUnavailable = -68;
 
 keymaster_error_t SocketTransport::openConnection() {
     struct sockaddr_in serv_addr;
     if ((mSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         LOG(ERROR) << "Socket creation failed"
                    << " Error: " << strerror(errno);
-        return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_TYPE_UNAVAILABLE);
+        return static_cast<keymaster_error_t>(kHardwareTypeUnavailable);
     }
 
     serv_addr.sin_family = AF_INET;
@@ -51,7 +51,7 @@ keymaster_error_t SocketTransport::openConnection() {
     // Convert IPv4 and IPv6 addresses from text to binary form
     if (inet_pton(AF_INET, IPADDR, &serv_addr.sin_addr) <= 0) {
         LOG(ERROR) << "Invalid address/ Address not supported.";
-        return static_cast<keymaster_error_t>(ErrorCode::HARDWARE_TYPE_UNAVAILABLE);
+        return static_cast<keymaster_error_t>(kHardwareTypeUnavailable);
     }
 
     if (connect(mSocket, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
