@@ -17,29 +17,27 @@
 #ifndef ANDROID_ESED_WEAVER_H
 #define ANDROID_ESED_WEAVER_H
 
-#include <android/hardware/weaver/1.0/IWeaver.h>
-#include <hidl/MQDescriptor.h>
-#include <hidl/Status.h>
-
+#include <aidl/android/hardware/weaver/BnWeaver.h>
+#include <aidl/android/hardware/weaver/IWeaver.h>
 #include <esecpp/EseInterface.h>
 
 namespace android {
 namespace esed {
 
+using ::aidl::android::hardware::weaver::BnWeaver;
+using ::aidl::android::hardware::weaver::WeaverConfig;
+using ::aidl::android::hardware::weaver::WeaverReadResponse;
 using ::android::EseInterface;
-using ::android::hardware::weaver::V1_0::IWeaver;
-using ::android::hardware::weaver::V1_0::WeaverStatus;
-using ::android::hardware::hidl_vec;
-using ::android::hardware::Return;
+using ndk::ScopedAStatus;
 
-struct Weaver : public IWeaver {
+struct Weaver : public BnWeaver {
     Weaver(EseInterface& ese) : mEse(ese) {};
 
-    // Methods from ::android::hardware::weaver::V1_0::IWeaver follow.
-    Return<void> getConfig(getConfig_cb _hidl_cb) override;
-    Return<WeaverStatus> write(uint32_t slotId, const hidl_vec<uint8_t>& key,
-                               const hidl_vec<uint8_t>& value) override;
-    Return<void> read(uint32_t slotId, const hidl_vec<uint8_t>& key, read_cb _hidl_cb) override;
+    ScopedAStatus getConfig(WeaverConfig* _aidl_return) override;
+    ScopedAStatus write(int32_t slotId, const std::vector<uint8_t>& key,
+                        const std::vector<uint8_t>& value) override;
+    ScopedAStatus read(int32_t slotId, const std::vector<uint8_t>& key,
+                       WeaverReadResponse* _aidl_return) override;
 
 private:
     EseInterface& mEse;

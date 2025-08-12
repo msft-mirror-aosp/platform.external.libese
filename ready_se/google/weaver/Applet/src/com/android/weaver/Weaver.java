@@ -83,9 +83,7 @@ public class Weaver extends Applet {
             }
         }
 
-
         final byte buffer[] = apdu.getBuffer();
-        final byte cla = buffer[ISO7816.OFFSET_CLA];
         final byte ins = buffer[ISO7816.OFFSET_INS];
 
         // Handle standard commands
