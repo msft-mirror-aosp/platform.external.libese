@@ -64,10 +64,10 @@ cc_binary {
     ],
     defaults: [
         "jc_keymint_defaults",
-        "keymint_use_latest_hal_aidl_ndk_shared",
         "libjc_keymint_defaults",
     ],
     shared_libs: [
+        "android.hardware.security.keymint-V4-ndk",
         "lib_android_keymaster_keymint_utils",
     ],
     srcs: [
