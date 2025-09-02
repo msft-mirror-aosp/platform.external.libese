@@ -169,16 +169,16 @@ class CoreSlots implements Slots {
             /* 7  */ (short) (900 & 0xffff), // 15 minutes
             /* 8  */ (short) (1800 & 0xffff), // 30 minutes
             /* 9  */ (short) (5400 & 0xffff), // 90 minutes
-            /* 10 */ (short) (14580 & 0xffff), // 3^(10-5) minutes = 4.05 hours
-            /* 11 */ (short) (43740 & 0xffff), // 3^(11-5) minutes = 12.15 hours
-            /* 12 */ (short) (131220 & 0xffff), // 3^(12-5) minutes = 36.45 hours
-            /* 13 */ (short) (393660 & 0xffff), // 3^(13-5) minutes = 4.56 days
-            /* 14 */ (short) (1180980 & 0xffff), // 3^(14-5) minutes = 13.67 days
-            /* 15 */ (short) (3542940 & 0xffff), // 3^(15-5) minutes = 41.01 days
-            /* 16 */ (short) (10628820 & 0xffff), // 3^(16-5) minutes = 123.02 days
-            /* 17 */ (short) (31886460 & 0xffff), // 3^(17-5) minutes = 1.01 years
-            /* 18 */ (short) (95659380 & 0xffff), // 3^(18-5) minutes = 3.03 years
-            /* 19 */ (short) (286978140 & 0xffff), // 3^(19-5) minutes = 9.09 years
+            /* 10 */ (short) (14400 & 0xffff), // 4 hours
+            /* 11 */ (short) (43200 & 0xffff), // 12 hours
+            /* 12 */ (short) (129600 & 0xffff), // 36 hours
+            /* 13 */ (short) (345600 & 0xffff), // 4 days
+            /* 14 */ (short) (1123200 & 0xffff), // 13 days
+            /* 15 */ (short) (3542400 & 0xffff), // 41 days
+            /* 16 */ (short) (10627200 & 0xffff), // 123 days
+            /* 17 */ (short) (31536000 & 0xffff), // 1 year
+            /* 18 */ (short) (94608000 & 0xffff), // 3 years
+            /* 19 */ (short) (283824000 & 0xffff), // 9 years
         };
 
         private static final short[] TIMEOUT_SECONDS_HIGH = {
@@ -192,16 +192,16 @@ class CoreSlots implements Slots {
             /* 7  */ (short) (900 >> 16), // 15 minutes
             /* 8  */ (short) (1800 >> 16), // 30 minutes
             /* 9  */ (short) (5400 >> 16), // 90 minutes
-            /* 10 */ (short) (14580 >> 16), // 3^(10-5) minutes = 4.05 hours
-            /* 11 */ (short) (43740 >> 16), // 3^(11-5) minutes = 12.15 hours
-            /* 12 */ (short) (131220 >> 16), // 3^(12-5) minutes = 36.45 hours
-            /* 13 */ (short) (393660 >> 16), // 3^(13-5) minutes = 4.56 days
-            /* 14 */ (short) (1180980 >> 16), // 3^(14-5) minutes = 13.67 days
-            /* 15 */ (short) (3542940 >> 16), // 3^(15-5) minutes = 41.01 days
-            /* 16 */ (short) (10628820 >> 16), // 3^(16-5) minutes = 123.02 days
-            /* 17 */ (short) (31886460 >> 16), // 3^(17-5) minutes = 1.01 years
-            /* 18 */ (short) (95659380 >> 16), // 3^(18-5) minutes = 3.03 years
-            /* 19 */ (short) (286978140 >> 16), // 3^(19-5) minutes = 9.09 years
+            /* 10 */ (short) (14400 >> 16), // 4 hours
+            /* 11 */ (short) (43200 >> 16), // 12 hours
+            /* 12 */ (short) (129600 >> 16), // 36 hours
+            /* 13 */ (short) (345600 >> 16), // 4 days
+            /* 14 */ (short) (1123200 >> 16), // 13 days
+            /* 15 */ (short) (3542400 >> 16), // 41 days
+            /* 16 */ (short) (10627200 >> 16), // 123 days
+            /* 17 */ (short) (31536000 >> 16), // 1 year
+            /* 18 */ (short) (94608000 >> 16), // 3 years
+            /* 19 */ (short) (283824000 >> 16), // 9 years
         };
 
         private static byte[] sRemainingBackoff;
