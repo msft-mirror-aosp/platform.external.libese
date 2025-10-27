@@ -1716,7 +1716,7 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
     short respPtr = KMArray.instance((short) 6);
     KMArray resp = KMArray.cast(respPtr);
     resp.add((short) 0, KMInteger.uint_16(KMError.OK));
-    resp.add((short) 1, KMInteger.uint_16(getPackageVersion()));
+    resp.add((short) 1, KMInteger.uint_16(halVersion()));
     resp.add((short) 2, KMEnum.instance(KMType.HARDWARE_TYPE, KMType.STRONGBOX));
     resp.add(
         (short) 3,
