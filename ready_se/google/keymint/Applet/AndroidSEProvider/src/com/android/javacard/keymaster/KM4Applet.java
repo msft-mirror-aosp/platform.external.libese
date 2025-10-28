@@ -86,6 +86,9 @@ public class KM4Applet extends KMAndroidSEApplet {
             KMByteBlob.cast(moduleHashPtr).length());
       } else {
         // ModuleHash already has a different value set.
+        if (moduleHashLen != KMByteBlob.cast(moduleHashPtr).length()) {
+          KMException.throwIt(KMError.MODULE_HASH_ALREADY_SET);
+        }
         if (0
             != Util.arrayCompare(
                 scratchPad,
