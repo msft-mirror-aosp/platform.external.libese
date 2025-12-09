@@ -47,7 +47,7 @@ using keymint::javacard::SocketTransport;
 // Cuttlefish build fingerprint substring.
 #define CUTTLEFISH_FINGERPRINT_SS "aosp_cf_"
 
-constexpr int kKeymintVersion = 0x0400;
+constexpr int kKeymintVersion = 400;
 // Ensures HAL and applet version consistency. This is used as P1 byte in the APDU header. This
 // value is used by the applet to confirm that the KeyMint HAL is running a compatible version of
 // Keymint. If the versions do not match, the command is not executed.
