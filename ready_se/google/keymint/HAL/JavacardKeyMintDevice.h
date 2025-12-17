@@ -107,7 +107,6 @@ class JavacardKeyMintDevice {
     keymaster_error_t parseWrappedKey(const vector<uint8_t>& wrappedKeyData,
                                       std::vector<uint8_t>& iv, std::vector<uint8_t>& transitKey,
                                       std::vector<uint8_t>& secureKey, std::vector<uint8_t>& tag,
-                                      vector<KeyParameter>& authList, KeyFormat& keyFormat,
                                       std::vector<uint8_t>& wrappedKeyDescription);
 
     std::tuple<std::unique_ptr<Item>, keymaster_error_t> sendBeginImportWrappedKeyCmd(
@@ -115,8 +114,7 @@ class JavacardKeyMintDevice {
         const std::vector<uint8_t>& maskingKey, const vector<KeyParameter>& unwrappingParams);
 
     std::tuple<std::unique_ptr<Item>, keymaster_error_t>
-    sendFinishImportWrappedKeyCmd(const vector<KeyParameter>& keyParams, KeyFormat keyFormat,
-                                  const std::vector<uint8_t>& secureKey,
+    sendFinishImportWrappedKeyCmd(const std::vector<uint8_t>& secureKey,
                                   const std::vector<uint8_t>& tag, const std::vector<uint8_t>& iv,
                                   const std::vector<uint8_t>& wrappedKeyDescription,
                                   int64_t passwordSid, int64_t biometricSid);

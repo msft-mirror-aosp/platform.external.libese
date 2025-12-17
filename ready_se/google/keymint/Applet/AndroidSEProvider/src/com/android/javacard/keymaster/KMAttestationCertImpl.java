@@ -81,53 +81,6 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     0x00
   };
 
-  // Below are the allowed softwareEnforced Authorization tags inside the attestation certificate's
-  // extension.
-  private static final short[] swTagIds = {
-    KMType.MODULE_HASH,
-    KMType.ATTESTATION_APPLICATION_ID,
-    KMType.CREATION_DATETIME,
-    KMType.ALLOW_WHILE_ON_BODY,
-    KMType.USAGE_COUNT_LIMIT,
-    KMType.USAGE_EXPIRE_DATETIME,
-    KMType.ORIGINATION_EXPIRE_DATETIME,
-    KMType.ACTIVE_DATETIME,
-  };
-
-  // Below are the allowed hardwareEnforced Authorization tags inside the attestation certificate's
-  // extension.
-  private static final short[] hwTagIds = {
-    KMType.ATTESTATION_ID_SECOND_IMEI,
-    KMType.BOOT_PATCH_LEVEL,
-    KMType.VENDOR_PATCH_LEVEL,
-    KMType.ATTESTATION_ID_MODEL,
-    KMType.ATTESTATION_ID_MANUFACTURER,
-    KMType.ATTESTATION_ID_MEID,
-    KMType.ATTESTATION_ID_IMEI,
-    KMType.ATTESTATION_ID_SERIAL,
-    KMType.ATTESTATION_ID_PRODUCT,
-    KMType.ATTESTATION_ID_DEVICE,
-    KMType.ATTESTATION_ID_BRAND,
-    KMType.OS_PATCH_LEVEL,
-    KMType.OS_VERSION,
-    KMType.ROOT_OF_TRUST,
-    KMType.ORIGIN,
-    KMType.UNLOCKED_DEVICE_REQUIRED,
-    KMType.TRUSTED_CONFIRMATION_REQUIRED,
-    KMType.AUTH_TIMEOUT,
-    KMType.USER_AUTH_TYPE,
-    KMType.NO_AUTH_REQUIRED,
-    KMType.EARLY_BOOT_ONLY,
-    KMType.ROLLBACK_RESISTANCE,
-    KMType.RSA_OAEP_MGF_DIGEST,
-    KMType.RSA_PUBLIC_EXPONENT,
-    KMType.ECCURVE,
-    KMType.PADDING,
-    KMType.DIGEST,
-    KMType.KEYSIZE,
-    KMType.ALGORITHM,
-    KMType.PURPOSE
-  };
   // Below are the constants for the key usage extension.
   private static final byte keyUsageSign = (byte) 0x80; // 0 bit
   private static final byte keyUsageKeyEncipher = (byte) 0x20; // 2nd- bit
@@ -174,7 +127,56 @@ public class KMAttestationCertImpl implements KMAttestationCert {
   private static KMAttestationCert inst;
   private static KMSEProvider seProvider;
 
+  /**
+   * A transient short array used to manage state and offsets (pointers) during the X.509
+   * certificate construction process.
+   *
+   * <p><b>Context:</b> This centralized array is essential in the resource-constrained JavaCard
+   * environment. By storing all critical offsets here, it minimizes the use of numerous individual
+   * global variables, thereby conserving valuable RAM/heap memory and reducing unnecessary write
+   * operations to persistent memory when generating new certificates.
+   *
+   * <p><b>Purpose:</b> The array holds two main types of offsets, all indexed using the associated
+   * byte constants (e.g., {@link #CERT_START}, {@link #PUB_KEY}):
+   *
+   * <ul>
+   *   <li><b>Buffer Pointers:</b> Offsets indicating the current write position within the
+   *       construction buffer (used for fields like {@link #BUF_START} and {@link #STACK_PTR}).
+   *   <li><b>Attribute Pointers:</b> Offsets that point to the location of the raw ASN.1 data for
+   *       specific X.509 attributes (e.g., {@link #NOT_BEFORE}, {@link #ISSUER}, {@link #PUB_KEY}).
+   * </ul>
+   *
+   * <p>Since X.509 certificates are constructed in ASN.1 format, a bottom-up construction approach
+   * is used. The stored offsets are crucial for accurately calculating the correct lengths (e.g.,
+   * {@link #CERT_LENGTH}, {@link #TBS_LENGTH}) of the SEQUENCE fields as data is copied into the
+   * final certificate structure.
+   */
   private static short[] indexes;
+
+  /**
+   * A transient byte array used to persist various security flags and state indicators that govern
+   * the X.509 certificate construction and policy.
+   *
+   * <p><b>Context (Security Policy):</b> In the resource-constrained JavaCard environment, this
+   * array centralizes single-byte state values, ensuring they are accessible and consistent across
+   * certificate generation cycles. The array is indexed using dedicated byte constants (e.g.,
+   * {@link #KEY_USAGE}, {@link #DEVICE_LOCKED}).
+   *
+   * <p><b>Purpose:</b> The elements store critical policy parameters and ephemeral states required
+   * to correctly populate the certificate fields or enforce device policy, including:
+   *
+   * <ul>
+   *   <li><b>Key Usage:</b> Flags defining the permitted uses of the public key in the certificate
+   *       (e.g., {@link #KEY_USAGE}).
+   *   <li><b>Security State:</b> Indicators of the device's operational and security status (e.g.,
+   *       {@link #DEVICE_LOCKED}, {@link #VERIFIED_STATE}).
+   *   <li><b>Certificate Mode:</b> Configuration flags determining the specific type or format of
+   *       the certificate being generated (e.g., {@link #CERT_MODE}, {@link #RSA_CERT}).
+   * </ul>
+   *
+   * The values stored in this array directly influence the data encoded in the final X.509
+   * certificate extensions and fields.
+   */
   private static byte[] states;
 
   private static byte[] stack;
@@ -526,27 +528,23 @@ public class KMAttestationCertImpl implements KMAttestationCert {
 
   private static void pushSWParams() {
     short last = indexes[STACK_PTR];
-    byte index = 0;
-    short length = (short) swTagIds.length;
-    do {
-      pushParams(swParams, indexes[SW_PARAM_INDEX], swTagIds[index]);
-    } while (++index < length);
+    short length = (short) KMAsn1Parser.swTagIds.length;
+    for (short index = 1; index < length; index += 2) {
+      pushParams(swParams, indexes[SW_PARAM_INDEX], KMAsn1Parser.swTagIds[index]);
+    }
     pushSequenceHeader((short) (last - indexes[STACK_PTR]));
   }
 
   private static void pushHWParams() {
     short last = indexes[STACK_PTR];
-    byte index = 0;
-    short length = (short) hwTagIds.length;
-    do {
-      if (hwTagIds[index] == KMType.ROOT_OF_TRUST) {
+    short length = (short) KMAsn1Parser.hwTagIds.length;
+    for (short index = 1; index < length; index += 2) {
+      if (KMAsn1Parser.hwTagIds[index] == KMType.ROOT_OF_TRUST) {
         pushRoT();
         continue;
       }
-      if (pushParams(hwParams, indexes[HW_PARAM_INDEX], hwTagIds[index])) {
-        continue;
-      }
-    } while (++index < length);
+      pushParams(hwParams, indexes[HW_PARAM_INDEX], KMAsn1Parser.hwTagIds[index]);
+    }
     pushSequenceHeader((short) (last - indexes[STACK_PTR]));
   }
 
