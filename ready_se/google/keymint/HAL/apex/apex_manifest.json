@@ -1,0 +1,5 @@
+{
+    "name": "com.android.hardware.strongbox",
+    "version": 1,
+    "vendorBootstrap": true
+}

@@ -64,23 +64,7 @@ template <typename T, class... Args> std::shared_ptr<T> addService(Args&&... arg
 }
 
 std::shared_ptr<ITransport> getTransportInstance() {
-    bool isEmulator = false;
-    // Check if the current build is for emulator or device.
-    isEmulator = android::base::GetBoolProperty(PROP_BUILD_QEMU, false);
-    if (!isEmulator) {
-        std::string fingerprint = android::base::GetProperty(PROP_BUILD_FINGERPRINT, "");
-        if (!fingerprint.empty()) {
-            if (fingerprint.find(CUTTLEFISH_FINGERPRINT_SS, 0) != std::string::npos) {
-                isEmulator = true;
-            }
-        }
-    }
-
-    if (!isEmulator) {
-        return std::make_shared<OmapiTransport>();
-    } else {
-        return std::make_shared<SocketTransport>();
-    }
+    return std::make_shared<OmapiTransport>();
 }
 
 int main() {

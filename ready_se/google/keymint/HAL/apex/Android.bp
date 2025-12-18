@@ -1,0 +1,47 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+prebuilt_etc {
+    name: "android.hardware.security.keymint3-apex-service.strongbox.rc",
+    vendor: true,
+    src: "android.hardware.security.keymint3-apex-service.strongbox.rc",
+}
+
+// The following APEX module is introduced specifically for Cuttlefish Virtual devices.
+// Converting the HAL binary to an APEX module enables dynamic selection of the HAL
+// service at the boot time. For example, the reference StrongBox KeyMint HAL has been
+// modularized as an APEX. When the Cuttlefish device is launched with the flag
+// --enable_jcard_simulator=true, the CVD will activate the reference Strongbox HAL
+// during boot, allowing flexible HAL configuration without rebuilding the system image.
+apex {
+    name: "com.android.hardware.strongbox",
+    manifest: "apex_manifest.json",
+    file_contexts: "apex_file_contexts",
+    key: "com.google.cf.apex.key",
+    certificate: ":com.google.cf.apex.certificate",
+    vendor: true,
+    updatable: false,
+    soc_specific: true,
+
+    binaries: [
+        "android.hardware.security.keymint3-service.strongbox",
+    ],
+    prebuilts: [
+        "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
+        "android.hardware.security.keymint3-apex-service.strongbox.rc",
+        "android.hardware.security.keymint3-service.strongbox.xml",
+        "android.hardware.security.sharedsecret-service.strongbox3.xml",
+    ],
+}

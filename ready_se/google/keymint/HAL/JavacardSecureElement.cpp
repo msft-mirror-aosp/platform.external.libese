@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <regex.h>
 #include <string>
@@ -34,11 +35,58 @@
 namespace keymint::javacard {
 
 keymaster_error_t JavacardSecureElement::initializeJavacard() {
+    // Provision Attestation Ids at first
+    sendAttestationIds();
     Array request;
     request.add(Uint(getOsVersion()));
     request.add(Uint(getOsPatchlevel()));
     request.add(Uint(getVendorPatchlevel()));
     auto [item, err] = sendRequest(Instruction::INS_INIT_STRONGBOX_CMD, request);
+    return err;
+}
+
+keymaster_error_t JavacardSecureElement::sendAttestationIds() {
+    static constexpr char brand_prop_name[] = "ro.product.brand";
+    static constexpr char device_prop_name[] = "ro.product.device";
+    static constexpr char product_prop_name[] = "ro.product.name";
+    static constexpr char serial_prop_name[] = "ro.serialno";
+    static constexpr char manufacturer_prop_name[] = "ro.product.manufacturer";
+    static constexpr char model_prop_name[] = "ro.product.model";
+
+    std::string brand_prop_value = android::base::GetProperty(brand_prop_name, "");
+    std::string device_prop_value = android::base::GetProperty(device_prop_name, "");
+    std::string product_prop_value = android::base::GetProperty(product_prop_name, "");
+    std::string serial_prop_value = android::base::GetProperty(serial_prop_name, "");
+    std::string manufacturer_prop_value = android::base::GetProperty(manufacturer_prop_name, "");
+    std::string model_prop_value = android::base::GetProperty(model_prop_name, "");
+
+    std::string imei_value = "867400022047199";
+    std::string imei2_value = "867400022047199";
+    std::string meid = "";
+    std::map<keymaster_tag_t, std::string> attestation_ids = {
+        {KM_TAG_ATTESTATION_ID_BRAND, brand_prop_value},
+        {KM_TAG_ATTESTATION_ID_DEVICE, device_prop_value},
+        {KM_TAG_ATTESTATION_ID_PRODUCT, product_prop_value},
+        {KM_TAG_ATTESTATION_ID_SERIAL, serial_prop_value},
+        {KM_TAG_ATTESTATION_ID_IMEI, imei_value},
+        {KM_TAG_ATTESTATION_ID_MANUFACTURER, manufacturer_prop_value},
+        {KM_TAG_ATTESTATION_ID_MODEL, model_prop_value},
+        {KM_TAG_ATTESTATION_ID_SECOND_IMEI, imei2_value},
+        {KM_TAG_ATTESTATION_ID_MEID, meid}};
+
+    Map map;
+    for (auto const& pair : attestation_ids) {
+        map.add(static_cast<uint32_t>(pair.first),
+                std::vector<uint8_t>(pair.second.begin(), pair.second.end()));
+    }
+    // construct cbor input.
+    Array request;
+    request.add(std::move(map));
+    std::vector<uint8_t> command = request.encode();
+    auto [item, err] = sendRequest(Instruction::INS_PROVISION_ATTEST_IDS_CMD, request);
+    if (err != KM_ERROR_OK) {
+        LOG(ERROR) << "Failed to provision attestation ids";
+    }
     return err;
 }
 

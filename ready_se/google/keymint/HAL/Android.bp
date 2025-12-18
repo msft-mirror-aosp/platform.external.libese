@@ -135,28 +135,18 @@ cc_defaults {
 // versions of KeyMint.  Vendors should use the version that matches the
 // version of the KeyMint HAL that the device implements.
 
-vintf_fragment {
-    name: "android.hardware.security.keymint4-service.strongbox.xml",
-    src: "android.hardware.security.keymint4-service.strongbox.xml",
-    vendor: true,
-}
-
-vintf_fragment {
-    name: "android.hardware.security.sharedsecret-service.strongbox4.xml",
-    src: "android.hardware.security.sharedsecret-service.strongbox4.xml",
-    vendor: true,
-}
-
-vintf_fragment {
+prebuilt_etc {
     name: "android.hardware.security.keymint3-service.strongbox.xml",
-    src: "android.hardware.security.keymint3-service.strongbox.xml",
+    sub_dir: "vintf",
     vendor: true,
+    src: "android.hardware.security.keymint3-service.strongbox.xml",
 }
 
-vintf_fragment {
+prebuilt_etc {
     name: "android.hardware.security.sharedsecret-service.strongbox3.xml",
-    src: "android.hardware.security.sharedsecret-service.strongbox3.xml",
+    sub_dir: "vintf",
     vendor: true,
+    src: "android.hardware.security.sharedsecret-service.strongbox3.xml",
 }
 
 prebuilt_etc {
@@ -164,6 +154,20 @@ prebuilt_etc {
     sub_dir: "permissions",
     vendor: true,
     src: "android.hardware.hardware_keystore.jc-strongbox-keymint3.xml",
+}
+
+prebuilt_etc {
+    name: "android.hardware.security.keymint4-service.strongbox.xml",
+    sub_dir: "vintf",
+    vendor: true,
+    src: "android.hardware.security.keymint4-service.strongbox.xml",
+}
+
+prebuilt_etc {
+    name: "android.hardware.security.sharedsecret-service.strongbox4.xml",
+    sub_dir: "vintf",
+    vendor: true,
+    src: "android.hardware.security.sharedsecret-service.strongbox4.xml",
 }
 
 prebuilt_etc {

@@ -45,7 +45,7 @@ public class KMRsaOAEPEncoding extends Cipher {
     }
   }
 
-  private void setDigests(byte alg) {
+  protected void setDigests(byte alg) {
     switch (alg) {
       case ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA1:
         hash = MessageDigest.ALG_SHA_256;
@@ -86,7 +86,8 @@ public class KMRsaOAEPEncoding extends Cipher {
   @Override
   public void init(Key theKey, byte theMode, byte[] bArray, short bOff, short bLen)
       throws CryptoException {
-    cipher.init(theKey, theMode, bArray, bOff, bLen);
+    // RSA will not have IV
+    CryptoException.throwIt(CryptoException.ILLEGAL_USE);
   }
 
   @Override
@@ -190,9 +191,9 @@ public class KMRsaOAEPEncoding extends Cipher {
 
   private short rsaOAEPDecode(byte[] encodedMsg, short encodedMsgOff, short encodedMsgLen) {
     MessageDigest.OneShot md = null;
-    byte[] tmpArray = KMAndroidSEProvider.getInstance().tmpArray;
-
+    KMSharedBuffer sharedBuffer = KMSharedBuffer.getInstance();
     try {
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
       short hLen = getDigestLength();
 
       if (encodedMsgLen < (short) (2 * hLen + 1)) {
@@ -283,7 +284,11 @@ public class KMRsaOAEPEncoding extends Cipher {
       if (md != null) {
         md.close();
       }
-      Util.arrayFillNonAtomic(tmpArray, (short) 0, KMAndroidSEProvider.TMP_ARRAY_SIZE, (byte) 0);
+      sharedBuffer.clean();
     }
+  }
+
+  protected byte getMgf1Hash() {
+    return mgf1Hash;
   }
 }

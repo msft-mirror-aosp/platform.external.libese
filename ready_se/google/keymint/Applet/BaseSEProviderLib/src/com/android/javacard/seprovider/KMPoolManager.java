@@ -108,15 +108,6 @@ public class KMPoolManager {
 
   final byte[] KEY_AGREE_ALGS = {KeyAgreement.ALG_EC_SVDP_DH_PLAIN};
 
-  private static KMPoolManager poolManager;
-
-  public static KMPoolManager getInstance() {
-    if (poolManager == null) {
-      poolManager = new KMPoolManager();
-    }
-    return poolManager;
-  }
-
   public static void initStatics() {
     secp256r1_P =
         new byte[] {
@@ -183,7 +174,7 @@ public class KMPoolManager {
         };
   }
 
-  private KMPoolManager() {
+  public KMPoolManager() {
     initStatics();
     cipherPool = new Object[(short) (CIPHER_ALGS.length * MAX_OPERATION_INSTANCES)];
     // Extra 4 algorithms are used to support TRUSTED_CONFIRMATION_REQUIRED feature.
@@ -207,7 +198,7 @@ public class KMPoolManager {
   }
 
   private void initializeRKpObjects() {
-    rkpOPeration = new KMOperationImpl();
+    rkpOPeration = createOperation();
     rkpEc = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
     rkpEcKey = createKeyObjectInstance(KMType.EC);
   }
@@ -220,13 +211,13 @@ public class KMPoolManager {
 
   private void initializeOperationPool() {
     for (short index = 0; index < MAX_OPERATION_INSTANCES; index++) {
-      operationPool[index] = new KMOperationImpl();
+      operationPool[index] = createOperation();
     }
   }
 
   private void initializeHmacSignOperationPool() {
     for (short index = 0; index < MAX_OPERATION_INSTANCES; index++) {
-      hmacSignOperationPool[index] = new KMOperationImpl();
+      hmacSignOperationPool[index] = createOperation();
     }
   }
 
@@ -298,7 +289,7 @@ public class KMPoolManager {
     return KeyAgreement.getInstance(alg, false);
   }
 
-  private Signature getSignatureInstance(byte alg) {
+  protected Signature getSignatureInstance(byte alg) {
     if (KMRsa2048NoDigestSignature.ALG_RSA_SIGN_NOPAD == alg
         || KMRsa2048NoDigestSignature.ALG_RSA_PKCS1_NODIGEST == alg) {
       return new KMRsa2048NoDigestSignature(alg);
@@ -313,22 +304,13 @@ public class KMPoolManager {
     Object keyObject = null;
     switch (alg) {
       case AES_128:
-        keyObject =
-            (AESKey)
-                KeyBuilder.buildKey(
-                    KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_128, false);
+        keyObject = buildTransientResetAesKey(KeyBuilder.LENGTH_AES_128);
         break;
       case AES_256:
-        keyObject =
-            (AESKey)
-                KeyBuilder.buildKey(
-                    KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_256, false);
+        keyObject = buildTransientResetAesKey(KeyBuilder.LENGTH_AES_256);
         break;
       case KMType.DES:
-        keyObject =
-            (DESKey)
-                KeyBuilder.buildKey(
-                    KeyBuilder.TYPE_DES_TRANSIENT_RESET, KeyBuilder.LENGTH_DES3_3KEY, false);
+        keyObject = buildTransientResetDesKey(KeyBuilder.LENGTH_DES3_3KEY);
         break;
       case KMType.RSA:
         keyObject = new KeyPair(KeyPair.ALG_RSA, KeyBuilder.LENGTH_RSA_2048);
@@ -338,8 +320,7 @@ public class KMPoolManager {
         initECKey((KeyPair) keyObject);
         break;
       case KMType.HMAC:
-        keyObject =
-            (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC_TRANSIENT_RESET, (short) 512, false);
+        keyObject = buildTransientResetHmacKey();
         break;
       default:
         KMException.throwIt(KMError.UNSUPPORTED_ALGORITHM);
@@ -350,7 +331,7 @@ public class KMPoolManager {
     return ptr;
   }
 
-  private Cipher getCipherInstance(byte alg) {
+  protected Cipher getCipherInstance(byte alg) {
     if ((KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA1 == alg)
         || (KMRsaOAEPEncoding.ALG_RSA_PKCS1_OAEP_SHA256_MGF1_SHA256 == alg)) {
       return new KMRsaOAEPEncoding(alg);
@@ -653,5 +634,21 @@ public class KMPoolManager {
     }
     // release rkp operation
     rkpOPeration.abort();
+  }
+
+  protected KMOperation createOperation() {
+    return new KMOperationImpl();
+  }
+
+  protected HMACKey buildTransientResetHmacKey() {
+    return (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC_TRANSIENT_RESET, (short) 512, false);
+  }
+
+  protected AESKey buildTransientResetAesKey(short len) {
+    return (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_RESET, len, false);
+  }
+
+  protected DESKey buildTransientResetDesKey(short len) {
+    return (DESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_DES_TRANSIENT_RESET, len, false);
   }
 }

@@ -15,7 +15,6 @@
  */
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMAndroidSEProvider;
 import com.android.javacard.seprovider.KMException;
 import com.android.javacard.seprovider.KMSEProvider;
 import javacard.framework.APDU;
@@ -114,7 +113,7 @@ public abstract class KMAndroidSEApplet extends KMKeymasterApplet implements OnU
         return;
       }
       updateApduStatusFlags(apduIns);
-      if (((KMAndroidSEProvider) seProvider).isPowerReset()) {
+      if (seProvider.isPowerReset()) {
         super.powerReset();
       }
 
@@ -509,7 +508,7 @@ public abstract class KMAndroidSEApplet extends KMKeymasterApplet implements OnU
   private static short buildErrorStatus(short err) {
     short int32Ptr = KMInteger.instance((short) 4);
     short powerResetStatus = 0;
-    if (((KMAndroidSEProvider) seProvider).isPowerReset()) {
+    if (seProvider.isPowerReset()) {
       powerResetStatus = POWER_RESET_MASK_FLAG;
     }
 
@@ -602,7 +601,7 @@ public abstract class KMAndroidSEApplet extends KMKeymasterApplet implements OnU
     short P1P2 = Util.getShort(apduBuffer, ISO7816.OFFSET_P1);
 
     // Validate CLA
-    if (!apdu.isValidCLA()) {
+    if (!seProvider.isValidCLA(apdu)) {
       ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
     }
 

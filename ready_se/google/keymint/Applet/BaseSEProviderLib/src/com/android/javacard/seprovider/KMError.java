@@ -24,6 +24,7 @@ public class KMError {
   public static final short OK = 0;
   public static final short UNSUPPORTED_PURPOSE = 2;
   public static final short UNSUPPORTED_ALGORITHM = 4;
+  public static final short UNSUPPORTED_DIGEST = 12;
   public static final short INVALID_INPUT_LENGTH = 21;
   public static final short VERIFICATION_FAILED = 30;
   public static final short TOO_MANY_OPERATIONS = 31;

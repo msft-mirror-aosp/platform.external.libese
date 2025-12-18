@@ -30,6 +30,8 @@ using std::shared_ptr;
 using std::vector;
 
 enum class Instruction {
+    // Provision Attestation Ids.
+    INS_PROVISION_ATTEST_IDS_CMD = 3,
     // Keymaster commands
     INS_GENERATE_KEY_CMD = KEYMINT_CMD_APDU_START + 1,
     INS_IMPORT_KEY_CMD = KEYMINT_CMD_APDU_START + 2,
@@ -100,6 +102,7 @@ class JavacardSecureElement {
     void sendPendingEvents();
     void setEarlyBootEndedPending();
     void setDeleteAllKeysPending();
+    keymaster_error_t sendAttestationIds();
 
     inline uint16_t getApduStatus(std::vector<uint8_t>& inputData) {
         // Last two bytes are the status SW0SW1

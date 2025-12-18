@@ -22,22 +22,17 @@ import javacard.security.MessageDigest;
 import javacard.security.Signature;
 import javacardx.crypto.Cipher;
 
-/**
- * This class provides support for ECDSA_NO_DIGEST signature algorithm. Added this because javacard
- * 3.0.5 does not support this
- */
-public class KMEcdsa256NoDigestSignature extends Signature {
+/** This class provides support for RSA_NO_DIGEST signature algorithm. */
+public class KMRsa2048NoDigestSignature extends Signature {
 
-  public static final byte ALG_ECDSA_NODIGEST = (byte) 0x67;
-  public static final byte MAX_NO_DIGEST_MSG_LEN = 32;
+  public static final byte ALG_RSA_SIGN_NOPAD = (byte) 0x65;
+  public static final byte ALG_RSA_PKCS1_NODIGEST = (byte) 0x66;
   private byte algorithm;
-  private Signature inst;
+  private Cipher inst;
 
-  public KMEcdsa256NoDigestSignature(byte alg) {
+  public KMRsa2048NoDigestSignature(byte alg) {
     algorithm = alg;
-    // There is no constant for no digest so ALG_ECDSA_SHA_256 is used. However,
-    // signPreComputedHash is used for signing which is equivalent to no digest sign.
-    inst = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
+    inst = Cipher.getInstance(Cipher.ALG_RSA_NOPAD, false);
   }
 
   @Override
@@ -47,7 +42,7 @@ public class KMEcdsa256NoDigestSignature extends Signature {
 
   @Override
   public void init(Key key, byte b, byte[] bytes, short i, short i1) throws CryptoException {
-    inst.init(key, b, bytes, i, i1);
+    CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
   }
 
   @Override
@@ -66,7 +61,7 @@ public class KMEcdsa256NoDigestSignature extends Signature {
 
   @Override
   public byte getCipherAlgorithm() {
-    return 0;
+    return algorithm;
   }
 
   @Override
@@ -76,50 +71,31 @@ public class KMEcdsa256NoDigestSignature extends Signature {
 
   @Override
   public short getLength() throws CryptoException {
-    return inst.getLength();
+    return 0;
   }
 
   @Override
-  public void update(byte[] message, short msgStart, short messageLength) throws CryptoException {
+  public void update(byte[] bytes, short i, short i1) throws CryptoException {
     // HAL accumulates the data and send it at finish operation.
   }
 
   @Override
   public short sign(byte[] bytes, short i, short i1, byte[] bytes1, short i2)
       throws CryptoException {
+    KMSharedBuffer sharedBuffer = KMSharedBuffer.getInstance();
     try {
-      if (i1 > MAX_NO_DIGEST_MSG_LEN) {
-        CryptoException.throwIt(CryptoException.ILLEGAL_USE);
-      }
-      // add zeros to the left
-      if (i1 < MAX_NO_DIGEST_MSG_LEN) {
-        Util.arrayFillNonAtomic(
-            KMAndroidSEProvider.getInstance().tmpArray,
-            (short) 0,
-            (short) MAX_NO_DIGEST_MSG_LEN,
-            (byte) 0);
-      }
-      Util.arrayCopyNonAtomic(
-          bytes,
-          i,
-          KMAndroidSEProvider.getInstance().tmpArray,
-          (short) (MAX_NO_DIGEST_MSG_LEN - i1),
-          i1);
-      return inst.signPreComputedHash(
-          KMAndroidSEProvider.getInstance().tmpArray,
-          (short) 0,
-          (short) MAX_NO_DIGEST_MSG_LEN,
-          bytes1,
-          i2);
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
+      padData(bytes, i, i1, tmpArray, (short) 0);
+      return inst.doFinal(tmpArray, (short) 0, (short) 256, bytes1, i2);
     } finally {
-      KMAndroidSEProvider.getInstance().clean();
+      sharedBuffer.clean();
     }
   }
 
   @Override
   public short signPreComputedHash(byte[] bytes, short i, short i1, byte[] bytes1, short i2)
       throws CryptoException {
-    return inst.sign(bytes, i, i1, bytes1, i2);
+    return 0;
   }
 
   @Override
@@ -134,5 +110,36 @@ public class KMEcdsa256NoDigestSignature extends Signature {
       byte[] bytes, short i, short i1, byte[] bytes1, short i2, short i3) throws CryptoException {
     // Verification is handled inside HAL
     return false;
+  }
+
+  private void padData(byte[] buf, short start, short len, byte[] outBuf, short outBufStart) {
+    if (!isValidData(buf, start, len)) {
+      CryptoException.throwIt(CryptoException.ILLEGAL_VALUE);
+    }
+    Util.arrayFillNonAtomic(outBuf, (short) outBufStart, (short) 256, (byte) 0x00);
+    if (algorithm == ALG_RSA_SIGN_NOPAD) { // add zero to right
+    } else if (algorithm == ALG_RSA_PKCS1_NODIGEST) { // 0x00||0x01||PS||0x00
+      outBuf[0] = 0x00;
+      outBuf[1] = 0x01;
+      Util.arrayFillNonAtomic(outBuf, (short) 2, (short) (256 - len - 3), (byte) 0xFF);
+      outBuf[(short) (256 - len - 1)] = 0x00;
+    } else {
+      CryptoException.throwIt(CryptoException.ILLEGAL_USE);
+    }
+    Util.arrayCopyNonAtomic(buf, start, outBuf, (short) (256 - len), len);
+  }
+
+  protected boolean isValidData(byte[] buf, short start, short len) {
+    if (algorithm == ALG_RSA_SIGN_NOPAD) {
+      if (len > 256) {
+        return false;
+      }
+    } else { // ALG_RSA_PKCS1_NODIGEST
+      if (len > 245) {
+        KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
+        return false;
+      }
+    }
+    return true;
   }
 }

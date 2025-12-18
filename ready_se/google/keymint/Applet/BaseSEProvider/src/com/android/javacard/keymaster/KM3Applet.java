@@ -15,9 +15,6 @@
  */
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMAndroidSEProvider;
-import com.android.javacard.seprovider.KMSEProvider;
-
 public class KM3Applet extends KMAndroidSEApplet {
 
   private static final short KM_VERSION = 300;
@@ -25,13 +22,30 @@ public class KM3Applet extends KMAndroidSEApplet {
   // This is the P1P2 constant of the APDU command header.
   private static final short P1P2 = (short) 0x6000;
 
-  protected KM3Applet(KMSEProvider seImpl) {
-    super(seImpl);
+  protected KM3Applet() {
+    super(KMSEProviderFactory.createInstance());
   }
 
+  /**
+   * Installs this applet.
+   *
+   * @param bArray the array containing installation parameters
+   * @param bOffset the starting offset in bArray
+   * @param bLength the length in bytes of the parameter data in bArray
+   */
   public static void install(byte[] bArray, short bOffset, byte bLength) {
-    KMAndroidSEProvider provider = new KMAndroidSEProvider();
-    new KM3Applet(provider).register();
+    if (bLength == 0) {
+      // This change addresses a compatibility issue with JCardSim.
+      // The `install()` method in Java Card's framework receives a buffer containing installation
+      // parameters, including the applet's AID. However, JCardSim doesn't send the AID in this
+      // buffer, causing the buffer length to be 0. Calling `register()` with installation
+      // parameters in this scenario would throw an exception. This conditional check ensures that
+      // the no-argument `register()` method is called when the buffer length is 0, allowing the
+      // applet to be installed correctly in JCardSim.
+      new KM3Applet().register();
+    } else {
+      new KM3Applet().register(bArray, (short) (bOffset + 1), bArray[bOffset]);
+    }
   }
 
   @Override

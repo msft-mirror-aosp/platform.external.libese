@@ -13,9 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.javacard.seprovider;
+package com.android.javacard.keymaster;
 
-public class KMAndroidSEProvider extends KMBaseSEProvider {
+import com.android.javacard.seprovider.KMAndroidSEProvider;
+import com.android.javacard.seprovider.KMSEProvider;
 
-  public KMAndroidSEProvider() {}
+/**
+ * The KMSEProviderFactory class serves as a factory for creating instances of KMSEProvider. It
+ * abstracts the creation process, allowing the system to obtain the correct SEProvider
+ * instance based on the compilation target.
+ */
+public class KMSEProviderFactory {
+
+  /**
+   * Creates an instance of the AndroidSEProvider.
+   */
+  public static KMSEProvider createInstance() {
+    return new KMAndroidSEProvider();
+  }
 }
