@@ -2680,13 +2680,6 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
       blockSize = DES_BLOCK_SIZE;
     }
 
-    if (op.getPurpose() == KMType.DECRYPT
-        && len > 0
-        && (op.getBlockMode() == KMType.ECB || op.getBlockMode() == KMType.CBC)
-        && ((short) (len % blockSize) != 0)) {
-      KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
-    }
-
     if (op.getBlockMode() == KMType.GCM) {
       if (op.getPurpose() == KMType.DECRYPT && (len < (short) (op.getMacLength() / 8))) {
         KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
