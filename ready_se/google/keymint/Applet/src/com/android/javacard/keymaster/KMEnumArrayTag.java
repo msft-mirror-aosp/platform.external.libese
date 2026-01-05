@@ -175,6 +175,7 @@ public class KMEnumArrayTag extends KMTag {
   }
 
   public short get(short index) {
+    assertWithinBounds(index, (short) (length() - 1));
     return KMByteBlob.cast(getValues()).get(index);
   }
 

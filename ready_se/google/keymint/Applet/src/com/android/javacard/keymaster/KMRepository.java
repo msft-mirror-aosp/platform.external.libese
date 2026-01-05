@@ -72,7 +72,9 @@ public class KMRepository {
   // This function uses memory from the back of the heap(transient memory). Call
   // reclaimMemory function immediately after the use.
   public short allocReclaimableMemory(short length) {
-    if ((((short) (reclaimIndex[0] - length)) <= heapIndex[0]) || (length >= HEAP_SIZE / 2)) {
+    if (length < 0
+        || (((short) (reclaimIndex[0] - length)) <= heapIndex[0])
+        || (length >= HEAP_SIZE / 2)) {
       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     }
     reclaimIndex[0] -= length;
@@ -81,7 +83,9 @@ public class KMRepository {
 
   // Reclaims the memory back.
   public void reclaimMemory(short length) {
-    if (reclaimIndex[0] < heapIndex[0]) {
+    if (length < 0
+        || (reclaimIndex[0] > (short) (Short.MAX_VALUE - length))
+        || (reclaimIndex[0] < heapIndex[0])) {
       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     }
     Util.arrayFillNonAtomic(heap, reclaimIndex[0], length, (byte) 0);
@@ -98,7 +102,9 @@ public class KMRepository {
   }
 
   public short alloc(short length) {
-    if ((((short) (heapIndex[0] + length)) > heap.length)
+    if (length < 0
+        || (heapIndex[0] > (short) (Short.MAX_VALUE - length))
+        || (((short) (heapIndex[0] + length)) > heap.length)
         || (((short) (heapIndex[0] + length)) > reclaimIndex[0])) {
       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     }
