@@ -243,7 +243,11 @@ class CoreSlots implements Slots {
             Util.arrayCopy(keyBuffer, keyOffset, mKey, (short) 0, Consts.SLOT_KEY_BYTES);
             Util.arrayCopy(valueBuffer, valueOffset, mValue, (short) 0, Consts.SLOT_VALUE_BYTES);
             mFailureCount = 0;
-            mBackoffTimer = DSTimer.getInstance();
+            if (mBackoffTimer == null) {
+                mBackoffTimer = DSTimer.getInstance();
+            } else {
+                mBackoffTimer.stopTimer();
+            }
             JCSystem.commitTransaction();
         }
 
