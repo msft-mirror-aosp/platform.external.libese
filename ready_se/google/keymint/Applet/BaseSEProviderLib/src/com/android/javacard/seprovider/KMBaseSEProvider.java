@@ -62,6 +62,7 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
   public static final byte POWER_RESET_TRUE = (byte) 0x00;
   // The computed HMAC key size.
   private static final byte COMPUTED_HMAC_KEY_SIZE = 32;
+  private static final short SEED_CHUNK_SIZE = (short) 256;
   // The constant 'L' as defiend in
   // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-108.pdf, page 12.
   private static byte[] CMAC_KDF_CONSTANT_L;
@@ -373,9 +374,38 @@ public abstract class KMBaseSEProvider implements KMSEProvider {
     rng.nextBytes(num, startOff, length);
   }
 
+  private short unsignedMin(short first, short second) {
+    if (first < 0 || second < 0) {
+      ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+    }
+    return first <= second ? first : second;
+  }
+
   @Override
   public void addRngEntropy(byte[] num, short offset, short length) {
-    rng.setSeed(num, offset, length);
+    try {
+      short processedData = 0;
+      short currentOffset = offset;
+      byte[] tmpArray = sharedBuffer.getTransientBuffer();
+      newRandomNumber(tmpArray, (short) 0, SEED_CHUNK_SIZE);
+
+      while (processedData < length) {
+
+        short bytesToProcess = unsignedMin((short) (length - processedData), SEED_CHUNK_SIZE);
+
+        for (short index = 0; index < bytesToProcess; index++) {
+          tmpArray[index] ^= num[(short) (currentOffset + index)];
+        }
+
+        processedData += bytesToProcess;
+        currentOffset += bytesToProcess;
+      }
+
+      rng.setSeed(tmpArray, (short) 0, SEED_CHUNK_SIZE);
+
+    } finally {
+      sharedBuffer.clean();
+    }
   }
 
   protected short aesGCMEncryptInternal(
