@@ -422,4 +422,21 @@ public abstract class KMType {
     Util.setShort(heap, (short) (ptr + 1), INVALID_VALUE);
     return ptr;
   }
+
+  /**
+   * Asserts that the provided value is within the valid bounds.
+   *
+   * <p>This method checks if the provided `value` is greater than or equal to zero and strictly
+   * less than the specified `max`. If the `value` is outside these bounds, an `ISOException` with
+   * the status word `ISO7816.SW_CONDITIONS_NOT_SATISFIED` is thrown, indicating an invalid value.
+   *
+   * @param value The length or index value to validate.
+   * @param max The maximum allowed length value (inclusive).
+   * @throws ISOException If the length is negative or greater than the maximum length.
+   */
+  protected static void assertWithinBounds(short value, short max) {
+    if (value < 0 || value > max) {
+      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    }
+  }
 }

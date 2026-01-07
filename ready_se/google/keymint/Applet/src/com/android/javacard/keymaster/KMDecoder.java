@@ -77,6 +77,7 @@ public class KMDecoder {
     scratchBuf[START_OFFSET] = startOff;
     scratchBuf[LEN_OFFSET] = (short) (startOff + length);
     short payloadLength = readMajorTypeWithPayloadLength(ARRAY_TYPE);
+    assertLengthWithinBuffer(payloadLength);
     short expLength = KMArray.cast(exp).length();
     if (payloadLength > expLength) {
       ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
@@ -241,8 +242,8 @@ public class KMDecoder {
     byte[] buffer = (byte[]) bufferRef[0];
     short startOff = scratchBuf[START_OFFSET];
     // This decoder is confined to support only key and value types which are required for remote
-    // key provisioning. So keys of type (int / uint) and values of type (int / uint / simple / bstr /
-    // tstr / Cosekey) only are supported.
+    // key provisioning. So keys of type (int / uint) and values of type (int / uint / simple / bstr
+    // / tstr / Cosekey) only are supported.
     if ((buffer[startOff] & MAJOR_TYPE_MASK) != UINT_TYPE
         && (buffer[startOff] & MAJOR_TYPE_MASK) != NEG_INT_TYPE) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
@@ -303,6 +304,7 @@ public class KMDecoder {
 
   private short decodeCoseMap(short exp) {
     short payloadLength = readMajorTypeWithPayloadLength(MAP_TYPE);
+    assertLengthWithinBuffer(payloadLength);
     // get allowed key pairs
     short allowedKeyPairs = KMCoseMap.getVals(exp);
     short vals = KMArray.instance(payloadLength);
@@ -343,6 +345,7 @@ public class KMDecoder {
 
   private short decodeKeyParam(short exp) {
     short payloadLength = readMajorTypeWithPayloadLength(MAP_TYPE);
+    assertLengthWithinBuffer(payloadLength);
     // allowed tags
     short allowedTags = KMKeyParameters.cast(exp).getVals();
     short tagRule = KMArray.cast(allowedTags).get((short) 0);
@@ -393,7 +396,7 @@ public class KMDecoder {
         index++;
       }
     }
-    KMArray.cast(vals).setLength(arrPos);
+    KMArray.cast(vals).reduceLength(arrPos);
     return KMKeyParameters.instance(vals);
   }
 
@@ -436,6 +439,7 @@ public class KMDecoder {
 
   private short decodeMap(short exp) {
     short payloadLength = readMajorTypeWithPayloadLength(MAP_TYPE);
+    assertLengthWithinBuffer(payloadLength);
     short mapPtr = KMMap.instance(payloadLength);
     short index = 0;
     short type;
@@ -454,6 +458,7 @@ public class KMDecoder {
 
   private short decodeArray(short exp) {
     short payloadLength = readMajorTypeWithPayloadLength(ARRAY_TYPE);
+    assertLengthWithinBuffer(payloadLength);
     short arrPtr = KMArray.instance(payloadLength);
     short index = 0;
     short type;
@@ -663,6 +668,7 @@ public class KMDecoder {
 
   private short decodeTstr(short exp) {
     short payloadLength = readMajorTypeWithPayloadLength(TSTR_TYPE);
+    assertLengthWithinBuffer(payloadLength);
     short inst =
         KMTextString.instance((byte[]) bufferRef[0], scratchBuf[START_OFFSET], payloadLength);
     incrementStartOff(payloadLength);
@@ -671,6 +677,7 @@ public class KMDecoder {
 
   private short decodeByteBlob(short exp) {
     short payloadLength = readMajorTypeWithPayloadLength(BYTES_TYPE);
+    assertLengthWithinBuffer(payloadLength);
     short inst =
         KMByteBlob.instance((byte[]) bufferRef[0], scratchBuf[START_OFFSET], payloadLength);
     incrementStartOff(payloadLength);
@@ -746,6 +753,9 @@ public class KMDecoder {
   }
 
   private void incrementStartOff(short inc) {
+    if (inc < 0 || scratchBuf[START_OFFSET] > (short) (Short.MAX_VALUE - inc)) {
+      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    }
     scratchBuf[START_OFFSET] += inc;
     if (scratchBuf[START_OFFSET] > scratchBuf[LEN_OFFSET]) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
@@ -757,6 +767,7 @@ public class KMDecoder {
     scratchBuf[START_OFFSET] = bufOffset;
     scratchBuf[LEN_OFFSET] = (short) (bufOffset + bufLen);
     short arrayLen = readMajorTypeWithPayloadLength(ARRAY_TYPE);
+    assertLengthWithinBuffer(arrayLen);
     if (arrayLen == 0) {
       ISOException.throwIt(ISO7816.SW_DATA_INVALID);
     }
@@ -775,5 +786,13 @@ public class KMDecoder {
     scratchBuf[LEN_OFFSET] = (short) (bufOffset + bufLen);
     readMajorTypeWithPayloadLength(BYTES_TYPE);
     return (short) (scratchBuf[START_OFFSET] - bufOffset);
+  }
+
+  private void assertLengthWithinBuffer(short length) {
+    if (length < 0
+        || (scratchBuf[START_OFFSET] > (short) (Short.MAX_VALUE - length))
+        || (short) (scratchBuf[START_OFFSET] + length) > scratchBuf[LEN_OFFSET]) {
+      ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+    }
   }
 }
