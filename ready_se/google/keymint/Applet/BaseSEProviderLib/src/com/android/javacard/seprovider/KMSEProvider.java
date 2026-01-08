@@ -150,7 +150,7 @@ public interface KMSEProvider {
    *
    * @param num is the buffer in which entropy value is given.
    * @param offset is start of the buffer.
-   * @param length length of the buffer.
+   * @param length is the length of the seed data
    */
   void addRngEntropy(byte[] num, short offset, short length);
 

@@ -279,7 +279,8 @@ public class KMOperationImpl implements KMOperation {
           && padding == KMType.PKCS7
           && mode == KMType.DECRYPT) {
         len = removePkcs7Padding(outputDataBuf, outputDataStart, len);
-      } else if (cipherAlg == KMType.AES && blockMode == KMType.GCM) {
+      }
+      if (cipherAlg == KMType.AES && blockMode == KMType.GCM) {
         if (mode == KMType.ENCRYPT) {
           len +=
               ((AEADCipher) cipher)
