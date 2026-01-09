@@ -15,7 +15,6 @@
  */
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMAESKey;
 import com.android.javacard.seprovider.KMAttestationCert;
 import com.android.javacard.seprovider.KMException;
 import com.android.javacard.seprovider.KMKey;
@@ -970,7 +969,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
       short appIdOff,
       short attestAppIdLen,
       byte resetSinceIdRotation,
-      KMKey masterKey) {
+      KMKey uniqueIdHmacKey) {
     // Concatenate T||C||R
     // temporal count T
     short temp =
@@ -988,18 +987,10 @@ public class KMAttestationCertImpl implements KMAttestationCert {
     scratchPad[scratchPadOff] = resetSinceIdRotation;
     scratchPadOff++;
 
-    // Get the key data from the master key
-    KMAESKey aesKey = (KMAESKey) masterKey;
-    short mKeyData = KMByteBlob.instance((short) (aesKey.aesKey.getSize() / 8));
-    aesKey.aesKey.getKey(
-        KMByteBlob.cast(mKeyData).getBuffer(), /* Key */
-        KMByteBlob.cast(mKeyData).getStartOff()); /* Key start*/
     timeOffset = KMByteBlob.instance((short) 32);
     appIdOff =
         seProvider.hmacSign(
-            KMByteBlob.cast(mKeyData).getBuffer(), /* Key */
-            KMByteBlob.cast(mKeyData).getStartOff(), /* Key start*/
-            KMByteBlob.cast(mKeyData).length(), /* Key length*/
+            uniqueIdHmacKey,
             scratchPad, /* data */
             temp, /* data start */
             scratchPadOff, /* data length */

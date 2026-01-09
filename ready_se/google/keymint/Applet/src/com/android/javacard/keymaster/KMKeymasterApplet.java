@@ -78,6 +78,10 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
     0x63, 0x6F, 0x6E, 0x66, 0x69, 0x72, 0x6D, 0x61, 0x74, 0x69, 0x6F, 0x6E, 0x20, 0x74, 0x6F, 0x6B,
     0x65, 0x6E
   };
+  // The uniqueIdCkdfLabel "UniqueIdContext" in hex.
+  public static final byte[] uniqueIdCkdfCtx = {
+    0x55, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x49, 0x64, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74
+  };
   // The maximum buffer size for the encoded COSE structures.
   public static final short MAX_COSE_BUF_SIZE = (short) 512;
   // Maximum allowed buffer size for to encode the key parameters
@@ -209,6 +213,8 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
   private static final byte MIN_GCM_TAG_LENGTH_BITS = (short) 96;
   // The maximum bits in length for AES-GCM tag.
   private static final short MAX_GCM_TAG_LENGTH_BITS = (short) 128;
+  // The maximum size of derived unique id hmac key.
+  private static final short UNIQUE_ID_HMAC_KEY_SIZE = 32;
   // Subject is a fixed field with only CN= Android Keystore Key - same for all the keys
   private static final byte[] defaultSubject = {
     0x30, 0x1F, 0x31, 0x1D, 0x30, 0x1B, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c, 0x14, 0x41, 0x6e, 0x64,
@@ -323,6 +329,8 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
   protected static KMOperationState[] opTable;
   // Instance of KMKeymintDataStore which helps to store and retrieve the data.
   protected static KMKeymintDataStore kmDataStore;
+  // Stores the derived unique id hmac key
+  protected static KMKey uniqueIdHmacKey;
 
   // Short array used to store the temporary results.
   protected static short[] tmpVariables;
@@ -363,6 +371,7 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
       // For keyMint 3.0 and above installation, set ignore second Imei flag to false.
       kmDataStore.ignoreSecondImei = false;
       kmDataStore.createMasterKey(MASTER_KEY_SIZE);
+      initializeUniqueIdKey();
     }
     // initialize default values
     initHmacNonceAndSeed();
@@ -476,7 +485,7 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
         KMByteBlob.cast(attAppId).getStartOff(),
         KMByteBlob.cast(attAppId).length(),
         resetAfterRotation,
-        kmDataStore.getMasterKey());
+        uniqueIdHmacKey);
   }
 
   private static void validateRSAKey(byte[] scratchPad) {
@@ -1116,6 +1125,26 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
     seProvider.newRandomNumber(
         repository.getHeap(), nonce, KMKeymintDataStore.HMAC_SEED_NONCE_SIZE);
     kmDataStore.initHmacNonce(repository.getHeap(), nonce, KMKeymintDataStore.HMAC_SEED_NONCE_SIZE);
+  }
+
+  protected void initializeUniqueIdKey() {
+    short index = repository.alloc(UNIQUE_ID_HMAC_KEY_SIZE);
+    byte[] heap = repository.getHeap();
+    Util.arrayFillNonAtomic(heap, index, UNIQUE_ID_HMAC_KEY_SIZE, (byte) 0);
+
+    short len =
+        seProvider.hmacKDF(
+            kmDataStore.getMasterKey(),
+            uniqueIdCkdfCtx,
+            (short) 0,
+            (short) uniqueIdCkdfCtx.length,
+            heap,
+            index);
+    if (len != UNIQUE_ID_HMAC_KEY_SIZE) {
+      KMException.throwIt(KMError.UNKNOWN_ERROR);
+    }
+    uniqueIdHmacKey =
+        seProvider.createKMHmacKey(uniqueIdHmacKey, heap, index, UNIQUE_ID_HMAC_KEY_SIZE);
   }
 
   private void releaseAllOperations() {
@@ -1806,6 +1835,7 @@ public abstract class KMKeymasterApplet extends Applet implements AppletEvent, E
     // This function is triggered when a factory reset event occurs.
     // Regenerate the master key to render all keys unusable.
     kmDataStore.regenerateMasterKey();
+    initializeUniqueIdKey();
     // Send ok
     sendResponse(apdu, KMError.OK);
   }

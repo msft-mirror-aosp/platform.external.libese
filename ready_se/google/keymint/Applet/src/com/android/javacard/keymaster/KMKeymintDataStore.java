@@ -579,9 +579,9 @@ public class KMKeymintDataStore implements KMUpgradable {
       KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
     }
     if (computedHmacKey == null) {
-      computedHmacKey = seProvider.createComputedHmacKey(computedHmacKey, keyData, offset, length);
+      computedHmacKey = seProvider.createKMHmacKey(computedHmacKey, keyData, offset, length);
     } else {
-      seProvider.createComputedHmacKey(computedHmacKey, keyData, offset, length);
+      seProvider.createKMHmacKey(computedHmacKey, keyData, offset, length);
     }
   }
 
