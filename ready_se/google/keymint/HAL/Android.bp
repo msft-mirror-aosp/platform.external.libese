@@ -79,6 +79,25 @@ cc_binary {
     ],
 }
 
+cc_library {
+    name: "libjc_keymint_transport",
+    vendor_available: true,
+    srcs: [
+        "OmapiTransport.cpp",
+        "SocketTransport.cpp",
+    ],
+    export_include_dirs: [
+        ".",
+    ],
+    shared_libs: [
+        "android.se.omapi-V1-ndk",
+        "libbase",
+        "libbinder_ndk",
+        "libhardware",
+        "liblog",
+    ],
+}
+
 cc_defaults {
     name: "libjc_keymint_defaults",
     srcs: [
