@@ -972,12 +972,15 @@ public class KMAttestationCertImpl implements KMAttestationCert {
       KMKey uniqueIdHmacKey) {
     // Concatenate T||C||R
     // temporal count T
-    short temp =
-        KMUtils.countTemporalCount(
-            creationTime, timeOffset, creationTimeLen, scratchPad, scratchPadOff);
-    Util.setShort(scratchPad, (short) scratchPadOff, temp);
-    temp = scratchPadOff;
-    scratchPadOff += 2;
+    KMUtils.countTemporalCount(
+        creationTime, timeOffset, creationTimeLen, scratchPad, scratchPadOff);
+    short relativeIndex = KMUtils.findFirstNonZeroByte(scratchPad, scratchPadOff, (short) 8);
+    short len = (short) (8 - relativeIndex);
+    // Move the actual value starting from scratchPadOff
+    Util.arrayCopyNonAtomic(
+        scratchPad, (short) (scratchPadOff + relativeIndex), scratchPad, scratchPadOff, len);
+    short startOff = scratchPadOff;
+    scratchPadOff += len;
 
     // Application Id C
     Util.arrayCopyNonAtomic(attestAppId, appIdOff, scratchPad, scratchPadOff, attestAppIdLen);
@@ -992,7 +995,7 @@ public class KMAttestationCertImpl implements KMAttestationCert {
         seProvider.hmacSign(
             uniqueIdHmacKey,
             scratchPad, /* data */
-            temp, /* data start */
+            startOff, /* data start */
             scratchPadOff, /* data length */
             KMByteBlob.cast(timeOffset).getBuffer(), /* signature buffer */
             KMByteBlob.cast(timeOffset).getStartOff()); /* signature start */
